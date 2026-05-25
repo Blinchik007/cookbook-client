@@ -3,10 +3,18 @@ package com.baranov.cookbook.network.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class UserProfileResponse(
+    val id: Int,
+    val name: String,
+    val email: String,
+    val photo: String?
+)
+
+@Serializable
 data class CreateUserRequest(
     val name: String,
     val email: String,
-    val passwordHash: String,
+    val password: String,
     val photo: String? = null
 )
 
@@ -16,4 +24,10 @@ data class UpdateUserRequest(
     val email: String? = null,
     val passwordHash: String? = null,
     val photo: String? = null
+)
+
+@Serializable
+data class LoginRequest(
+    val email: String,
+    val password: String
 )

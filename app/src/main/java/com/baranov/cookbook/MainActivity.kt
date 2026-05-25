@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        RecipeRepository.initialize() // пока оставим локальные данные
+        RecipeRepository.initialize()
         setContent {
             CookbookTheme {
                 CookbookApp()

@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
-    onNavigateToMain: () -> Unit,  // больше не передаём параметры, сессия уже установлена
+    onNavigateToMain: () -> Unit,
     onNavigateToRegistration: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
@@ -49,37 +49,23 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    if (email.isNotBlank() && password.isNotBlank()) {
-                        isLoading = true
-                        errorMessage = null
-                        scope.launch {
-                            try {
-                                val user = ApiClient.getUserByEmail(email)
-                                if (user != null) {
-                                    val passwordHash = ApiClient.hashPassword(password)
-                                    if (user.passwordHash == passwordHash) {
-                                        Session.userId = user.id
-                                        Session.userName = user.name
-                                        onNavigateToMain()
-                                    } else {
-                                        errorMessage = "Неверный пароль"
-                                    }
-                                } else {
-                                    errorMessage = "Пользователь не найден"
-                                }
-                            } catch (e: Exception) {
-                                errorMessage = e.message ?: "Ошибка сети"
-                            } finally {
-                                isLoading = false
-                            }
+            Button(onClick = {
+                if (email.isNotBlank() && password.isNotBlank()) {
+                    isLoading = true
+                    errorMessage = null
+                    scope.launch {
+                        try {
+                            val user = ApiClient.login(email, password)
+                            CurrentUserHolder.currentUser = user
+                            onNavigateToMain()
+                        } catch (e: Exception) {
+                            errorMessage = "Неверный email или пароль"
+                        } finally {
+                            isLoading = false
                         }
                     }
-                },
-                enabled = email.isNotBlank() && password.isNotBlank() && !isLoading,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+                }
+            }) {
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 } else {

@@ -56,40 +56,23 @@ fun AuthorizationScreen(onNavigateToMain: () -> Unit) {
                 Spacer(modifier = Modifier.height(8.dp))
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    if (name.isNotBlank() && email.isNotBlank() && password.isNotBlank()) {
-                        isLoading = true
-                        errorMessage = null
-                        scope.launch {
-                            try {
-                                val passwordHash = ApiClient.hashPassword(password)
-                                val userId = ApiClient.createUser(
-                                    CreateUserRequest(
-                                        name = name,
-                                        email = email,
-                                        passwordHash = passwordHash,
-                                        photo = null
-                                    )
-                                )
-                                if (userId != null) {
-                                    Session.userId = userId
-                                    Session.userName = name
-                                    onNavigateToMain()
-                                } else {
-                                    errorMessage = "Ошибка регистрации"
-                                }
-                            } catch (e: Exception) {
-                                errorMessage = e.message ?: "Неизвестная ошибка"
-                            } finally {
-                                isLoading = false
-                            }
+            Button(onClick = {
+                if (name.isNotBlank() && email.isNotBlank() && password.isNotBlank()) {
+                    isLoading = true
+                    errorMessage = null
+                    scope.launch {
+                        try {
+                            val user = ApiClient.register(name, email, password, photo = null)
+                            CurrentUserHolder.currentUser = user
+                            onNavigateToMain()
+                        } catch (e: Exception) {
+                            errorMessage = "Ошибка регистрации"
+                        } finally {
+                            isLoading = false
                         }
                     }
-                },
-                enabled = name.isNotBlank() && email.isNotBlank() && password.isNotBlank() && !isLoading,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+                }
+            }) {
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 } else {

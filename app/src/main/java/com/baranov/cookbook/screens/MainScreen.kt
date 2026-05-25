@@ -25,7 +25,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 
-// ------------------- Главный экран с BottomNavigation -------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(rootNavController: NavController) {
@@ -33,7 +32,7 @@ fun MainScreen(rootNavController: NavController) {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text(Session.userName.ifBlank { "Гость" }) })
+            TopAppBar(title = { Text(CurrentUserHolder.currentUser?.name ?: "Гость") })
         },
         bottomBar = {
             NavigationBar {
@@ -87,7 +86,6 @@ fun MainScreen(rootNavController: NavController) {
     }
 }
 
-// ------------------- Мои рецепты -------------------
 @Composable
 fun MyRecipesScreen(onEditRecipe: (Int) -> Unit) {
     val recipes = RecipeRepository.recipes
@@ -170,7 +168,6 @@ fun MyRecipesScreen(onEditRecipe: (Int) -> Unit) {
     }
 }
 
-// ------------------- Публичные рецепты (заглушка) -------------------
 @Composable
 fun PublicRecipesScreen() {
     Box(
@@ -181,7 +178,6 @@ fun PublicRecipesScreen() {
     }
 }
 
-// ------------------- Редактор рецепта -------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecipeEditorScreen(recipeId: Int, onFinish: (Recipe) -> Unit) {

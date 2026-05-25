@@ -1,5 +1,6 @@
 package com.baranov.cookbook.network
 
+import com.baranov.cookbook.CurrentUser
 import com.baranov.cookbook.network.dto.*
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -9,15 +10,14 @@ import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.*
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
-import java.security.MessageDigest
 
 object ApiClient {
-    // Замените на актуальный IP вашего сервера
     private const val BASE_URL = "http://192.168.1.3:8080/"
 
     val client = HttpClient(Android) {
@@ -37,23 +37,38 @@ object ApiClient {
         }
     }
 
-    // ============================
-    //   Users
-    // ============================
-    suspend fun createUser(request: CreateUserRequest): Int? {
+    suspend fun register(name: String, email: String, password: String, photo: String?): CurrentUser {
         val response = client.post("${BASE_URL}users") {
             contentType(ContentType.Application.Json)
-            setBody(request)
+            setBody(CreateUserRequest(name, email, password, photo))
         }
-        return if (response.status.isSuccess()) {
-            response.body<Map<String, Int>>()["id"]
-        } else null
+        if (response.status.isSuccess()) {
+            val profile = response.body<UserProfileResponse>()
+            return CurrentUser(profile.id, profile.name, profile.email, profile.photo)
+        } else {
+            val errorMsg = try { response.bodyAsText() } catch (e: Exception) { "Ошибка регистрации" }
+            throw Exception(errorMsg)
+        }
     }
 
-    suspend fun getAllUsers(): List<UserDto> =
+    suspend fun login(email: String, password: String): CurrentUser {
+        val response = client.post("${BASE_URL}users/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(email, password))
+        }
+        if (response.status.isSuccess()) {
+            val profile = response.body<UserProfileResponse>()
+            return CurrentUser(profile.id, profile.name, profile.email, profile.photo)
+        } else {
+            val errorMsg = try { response.bodyAsText() } catch (e: Exception) { "Неверный email или пароль" }
+            throw Exception(errorMsg)
+        }
+    }
+
+    suspend fun getAllUsers(): List<UserProfileResponse> =
         client.get("${BASE_URL}users").body()
 
-    suspend fun getUserById(id: Int): UserDto? {
+    suspend fun getUserById(id: Int): UserProfileResponse? {
         return try {
             client.get("${BASE_URL}users/$id").body()
         } catch (e: Exception) {
@@ -61,7 +76,7 @@ object ApiClient {
         }
     }
 
-    suspend fun getUserByEmail(email: String): UserDto? {
+    suspend fun getUserByEmail(email: String): UserProfileResponse? {
         return try {
             client.get("${BASE_URL}users/by-email") {
                 parameter("email", email)
@@ -71,9 +86,6 @@ object ApiClient {
         }
     }
 
-    // ============================
-    //   Products
-    // ============================
     suspend fun createProduct(request: CreateProductRequest): Int? {
         val response = client.post("${BASE_URL}products") {
             contentType(ContentType.Application.Json)
@@ -87,9 +99,6 @@ object ApiClient {
     suspend fun getAllProducts(): List<ProductDto> =
         client.get("${BASE_URL}products").body()
 
-    // ============================
-    //   Recipes
-    // ============================
     suspend fun getAllRecipes(): List<RecipeDto> =
         client.get("${BASE_URL}recipes").body()
 
@@ -101,13 +110,13 @@ object ApiClient {
         }
     }
 
-    suspend fun createRecipe(request: CreateRecipeRequest): Int? {
+    suspend fun createRecipe(request: CreateRecipeRequest): RecipeDto? {
         val response = client.post("${BASE_URL}recipes") {
             contentType(ContentType.Application.Json)
             setBody(request)
         }
         return if (response.status.isSuccess()) {
-            response.body<Map<String, Int>>()["id"]
+            response.body<RecipeDto>()
         } else null
     }
 
@@ -117,14 +126,5 @@ object ApiClient {
             setBody(request)
         }
         return response.status.isSuccess()
-    }
-
-    // ============================
-    //   Utility
-    // ============================
-    fun hashPassword(password: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val hashBytes = digest.digest(password.toByteArray())
-        return hashBytes.joinToString("") { "%02x".format(it) }
     }
 }
