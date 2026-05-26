@@ -16,6 +16,7 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import io.ktor.client.plugins.HttpTimeout
 
 object ApiClient {
     private const val BASE_URL = "http://192.168.1.3:8080/"
@@ -26,6 +27,11 @@ object ApiClient {
                 ignoreUnknownKeys = true
                 isLenient = true
             })
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 15_000
+            connectTimeoutMillis = 5_000
+            socketTimeoutMillis = 15_000
         }
         install(Logging) {
             level = LogLevel.BODY
@@ -86,13 +92,13 @@ object ApiClient {
         }
     }
 
-    suspend fun createProduct(request: CreateProductRequest): Int? {
+    suspend fun createProduct(request: CreateProductRequest): ProductDto? {
         val response = client.post("${BASE_URL}products") {
             contentType(ContentType.Application.Json)
             setBody(request)
         }
         return if (response.status.isSuccess()) {
-            response.body<Map<String, Int>>()["id"]
+            response.body<ProductDto>()
         } else null
     }
 

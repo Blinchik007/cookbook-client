@@ -31,7 +31,8 @@ data class RecipeProductDto(
 data class ProductDto(
     val id: Int,
     val name: String,
-    val measurementUnit: String
+    val measurementUnit: String,
+    val updatedAt: String
 )
 
 @Serializable

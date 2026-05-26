@@ -10,13 +10,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.baranov.cookbook.screens.RecipeEditorScreen
 import com.baranov.cookbook.ui.theme.CookbookTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        RecipeRepository.initialize()
+        AppContainer.init(this)  // инициализация БД и репозитория
         setContent {
             CookbookTheme {
                 CookbookApp()
@@ -58,21 +59,13 @@ fun CookbookApp() {
             MainScreen(rootNavController = navController)
         }
         composable(
-            route = "recipe_editor/{recipeId}",
-            arguments = listOf(navArgument("recipeId") { type = NavType.IntType; defaultValue = -1 })
+            route = "recipe_editor/{recipeLocalId}",
+            arguments = listOf(navArgument("recipeLocalId") { type = NavType.LongType; defaultValue = -1L })
         ) { backStackEntry ->
-            val recipeId = backStackEntry.arguments?.getInt("recipeId") ?: -1
+            val recipeLocalId = backStackEntry.arguments?.getLong("recipeLocalId") ?: -1L
             RecipeEditorScreen(
-                recipeId = recipeId,
-                onFinish = { updatedRecipe ->
-                    // TODO: в будущем заменить на ApiClient.createRecipe / updateRecipe
-                    if (recipeId == -1) {
-                        RecipeRepository.addRecipe(updatedRecipe)
-                    } else {
-                        RecipeRepository.updateRecipe(updatedRecipe)
-                    }
-                    navController.popBackStack()
-                }
+                recipeLocalId = recipeLocalId,
+                onFinish = { navController.popBackStack() }
             )
         }
     }
