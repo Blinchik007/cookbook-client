@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.baranov.cookbook.AppContainer
 import com.baranov.cookbook.CurrentUserHolder
 import com.baranov.cookbook.data.database.remote.ApiClient
 import kotlinx.coroutines.launch
@@ -64,6 +65,9 @@ fun RegisterScreen(onNavigateToMain: () -> Unit) {
                         try {
                             val user = ApiClient.register(name, email, password, photo = null)
                             CurrentUserHolder.currentUser = user
+                            if (user != null) {
+                                AppContainer.userPreferences.saveUser(user)
+                            }
                             onNavigateToMain()
                         } catch (e: Exception) {
                             errorMessage = "Ошибка регистрации"

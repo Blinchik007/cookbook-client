@@ -2,11 +2,17 @@ package com.baranov.cookbook.screens
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,77 +21,150 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.baranov.cookbook.AppContainer
 import com.baranov.cookbook.CurrentUserHolder
 import com.baranov.cookbook.data.database.local.LocalRecipesRepository
 import com.baranov.cookbook.data.database.remote.ApiClient
 import com.baranov.cookbook.data.database.remote.dto.RecipeDto
+import com.baranov.cookbook.ui.components.RecipeCard
+import com.baranov.cookbook.ui.components.UserAvatar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.baranov.cookbook.ui.components.RecipeCard
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(rootNavController: NavController) {
-    val innerNavController = rememberNavController()
     val repository = AppContainer.repository
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
+    val scope = rememberCoroutineScope()
+    val currentUser = CurrentUserHolder.currentUser
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text(CurrentUserHolder.currentUser?.name ?: "Гость") })
-        },
-        bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.List, contentDescription = "Мои рецепты") },
-                    label = { Text("Мои рецепты") },
-                    selected = innerNavController.currentDestination?.route == "my_recipes",
-                    onClick = {
-                        innerNavController.navigate("my_recipes") {
-                            popUpTo(innerNavController.graph.startDestinationId) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(modifier = Modifier.fillMaxWidth(0.5f)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    UserAvatar(
+                        photoBase64 = currentUser?.photo,
+                        size = 72.dp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = currentUser?.name ?: "Гость",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    if (currentUser != null) {
+                        Text(
+                            text = currentUser.email,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Public, contentDescription = "Публичные рецепты") },
-                    label = { Text("Публичные рецепты") },
-                    selected = innerNavController.currentDestination?.route == "public_recipes",
-                    onClick = {
-                        innerNavController.navigate("public_recipes") {
-                            popUpTo(innerNavController.graph.startDestinationId) {
-                                saveState = true
+                }
+                HorizontalDivider()
+
+                if (currentUser != null) {
+                    NavigationDrawerItem(
+                        label = { Text("Профиль") },
+                        icon = { Icon(Icons.Default.Person, contentDescription = null) },
+                        selected = false,
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            rootNavController.navigate("profile_screen")
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                    NavigationDrawerItem(
+                        label = { Text("Выйти") },
+                        icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null) },
+                        selected = false,
+                        onClick = {
+                            scope.launch {
+                                drawerState.close()
+                                AppContainer.userPreferences.clearUser()
+                                CurrentUserHolder.currentUser = null
                             }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                )
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                } else {
+                    NavigationDrawerItem(
+                        label = { Text("Войти") },
+                        icon = { Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null) },
+                        selected = false,
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            rootNavController.navigate("login_screen")
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
             }
         }
-    ) { innerPadding ->
-        NavHost(
-            navController = innerNavController,
-            startDestination = "my_recipes",
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            composable("my_recipes") {
-                MyRecipesScreen(
-                    repository = repository,
-                    onEditRecipe = { localId ->
-                        rootNavController.navigate("recipe_editor/$localId")
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    scope.launch { drawerState.open() }
+                                }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            UserAvatar(
+                                photoBase64 = currentUser?.photo,
+                                size = 36.dp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(currentUser?.name ?: "Гость")
+                        }
                     }
                 )
+            },
+            bottomBar = {
+                NavigationBar {
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.List, contentDescription = "Мои рецепты") },
+                        label = { Text("Мои рецепты") },
+                        selected = pagerState.currentPage == 0,
+                        onClick = {
+                            scope.launch { pagerState.animateScrollToPage(0) }
+                        }
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.Public, contentDescription = "Публичные рецепты") },
+                        label = { Text("Публичные рецепты") },
+                        selected = pagerState.currentPage == 1,
+                        onClick = {
+                            scope.launch { pagerState.animateScrollToPage(1) }
+                        }
+                    )
+                }
             }
-            composable("public_recipes") {
-                PublicRecipesScreen()
+        ) { innerPadding ->
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) { page ->
+                when (page) {
+                    0 -> MyRecipesScreen(
+                        repository = repository,
+                        onEditRecipe = { localId ->
+                            rootNavController.navigate("recipe_editor/$localId")
+                        }
+                    )
+                    1 -> PublicRecipesScreen()
+                }
             }
         }
     }

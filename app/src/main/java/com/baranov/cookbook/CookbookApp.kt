@@ -8,10 +8,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.baranov.cookbook.screens.RegisterScreen
-import com.baranov.cookbook.screens.LoginScreen
 import com.baranov.cookbook.screens.HomeScreen
+import com.baranov.cookbook.screens.LoginScreen
+import com.baranov.cookbook.screens.ProfileScreen
 import com.baranov.cookbook.screens.RecipeEditorScreen
+import com.baranov.cookbook.screens.RegisterScreen
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -21,14 +22,18 @@ fun CookbookApp() {
 
     NavHost(
         navController = navController,
-        startDestination = "login_screen"
+        startDestination = "home_screen"
     ) {
+        composable("home_screen") {
+            HomeScreen(rootNavController = navController)
+        }
         composable("login_screen") {
             LoginScreen(
                 onNavigateToMain = {
-                    navController.navigate("main_screen") {
-                        popUpTo("login_screen") { inclusive = true }
-                    }
+                    navController.popBackStack(
+                        route = "home_screen",
+                        inclusive = false
+                    )
                 },
                 onNavigateToRegistration = {
                     navController.navigate("register_screen")
@@ -38,14 +43,12 @@ fun CookbookApp() {
         composable("register_screen") {
             RegisterScreen(
                 onNavigateToMain = {
-                    navController.navigate("main_screen") {
-                        popUpTo("login_screen") { inclusive = true }
-                    }
+                    navController.popBackStack(
+                        route = "home_screen",
+                        inclusive = false
+                    )
                 }
             )
-        }
-        composable("main_screen") {
-            HomeScreen(rootNavController = navController)
         }
         composable(
             route = "recipe_editor/{recipeLocalId}",
@@ -56,6 +59,10 @@ fun CookbookApp() {
                 recipeLocalId = recipeLocalId,
                 onFinish = { navController.popBackStack() }
             )
+        }
+
+        composable("profile_screen") {
+            ProfileScreen(onFinish = { navController.popBackStack() })
         }
     }
 }

@@ -2,6 +2,7 @@ package com.baranov.cookbook.data.database.remote
 
 import com.baranov.cookbook.CurrentUser
 import com.baranov.cookbook.data.database.remote.dto.AddProductToRecipeRequest
+import com.baranov.cookbook.data.database.remote.dto.ChangePasswordRequest
 import com.baranov.cookbook.data.database.remote.dto.CreateProductRequest
 import com.baranov.cookbook.data.database.remote.dto.CreateRecipeRequest
 import com.baranov.cookbook.data.database.remote.dto.CreateUserRequest
@@ -9,6 +10,7 @@ import com.baranov.cookbook.data.database.remote.dto.LoginRequest
 import com.baranov.cookbook.data.database.remote.dto.ProductDto
 import com.baranov.cookbook.data.database.remote.dto.RecipeDto
 import com.baranov.cookbook.data.database.remote.dto.RecipeWithDetailsDto
+import com.baranov.cookbook.data.database.remote.dto.UpdateUserRequest
 import com.baranov.cookbook.data.database.remote.dto.UserProfileResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -140,5 +142,32 @@ object ApiClient {
             setBody(request)
         }
         return response.status.isSuccess()
+    }
+
+    suspend fun updateUser(userId: Int, request: UpdateUserRequest): CurrentUser? {
+        return try {
+            val response = client.put("${BASE_URL}users/$userId") {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+            if (response.status.isSuccess()) {
+                val profile = response.body<UserProfileResponse>()
+                CurrentUser(profile.id, profile.name, profile.email, profile.photo)
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun changePassword(userId: Int, oldPassword: String, newPassword: String): Boolean {
+        return try {
+            val response = client.post("${BASE_URL}users/$userId/change-password") {
+                contentType(ContentType.Application.Json)
+                setBody(ChangePasswordRequest(oldPassword, newPassword))
+            }
+            response.status.isSuccess()
+        } catch (e: Exception) {
+            false
+        }
     }
 }

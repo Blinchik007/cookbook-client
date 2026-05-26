@@ -1,11 +1,16 @@
 package com.baranov.cookbook
 
+import android.annotation.SuppressLint
 import android.content.Context
+import com.baranov.cookbook.data.UserPreferences
 import com.baranov.cookbook.data.database.local.AppDatabase
 import com.baranov.cookbook.data.database.local.LocalRecipesRepository
 
 object AppContainer {
     lateinit var repository: LocalRecipesRepository
+        private set
+    @SuppressLint("StaticFieldLeak")
+    lateinit var userPreferences: UserPreferences
         private set
 
     fun init(context: Context) {
@@ -15,5 +20,6 @@ object AppContainer {
             productDao = db.productDao(),
             recipeProductDao = db.recipeProductDao()
         )
+        userPreferences = UserPreferences(context.applicationContext)
     }
 }

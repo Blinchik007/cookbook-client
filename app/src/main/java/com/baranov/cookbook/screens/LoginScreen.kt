@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.baranov.cookbook.AppContainer
 import com.baranov.cookbook.CurrentUserHolder
 import com.baranov.cookbook.data.database.remote.ApiClient
 import kotlinx.coroutines.launch
@@ -58,6 +59,9 @@ fun LoginScreen(
                         try {
                             val user = ApiClient.login(email, password)
                             CurrentUserHolder.currentUser = user
+                            if (user != null) {
+                                AppContainer.userPreferences.saveUser(user)
+                            }
                             onNavigateToMain()
                         } catch (e: Exception) {
                             errorMessage = "Неверный email или пароль"

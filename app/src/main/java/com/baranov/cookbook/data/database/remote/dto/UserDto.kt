@@ -22,8 +22,13 @@ data class CreateUserRequest(
 data class UpdateUserRequest(
     val name: String? = null,
     val email: String? = null,
-    val passwordHash: String? = null,
     val photo: String? = null
+)
+
+@Serializable
+data class ChangePasswordRequest(
+    val oldPassword: String,
+    val newPassword: String
 )
 
 @Serializable
