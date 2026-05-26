@@ -1,11 +1,15 @@
-package com.baranov.cookbook.localDB
+package com.baranov.cookbook.data.database.local
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.baranov.cookbook.localDB.dao.*
-import com.baranov.cookbook.localDB.entity.*
+import com.baranov.cookbook.data.database.local.dao.ProductDao
+import com.baranov.cookbook.data.database.local.dao.RecipeDao
+import com.baranov.cookbook.data.database.local.dao.RecipeProductDao
+import com.baranov.cookbook.data.database.local.entity.LocalProductEntity
+import com.baranov.cookbook.data.database.local.entity.LocalRecipeEntity
+import com.baranov.cookbook.data.database.local.entity.LocalRecipeProductEntity
 
 @Database(
     entities = [

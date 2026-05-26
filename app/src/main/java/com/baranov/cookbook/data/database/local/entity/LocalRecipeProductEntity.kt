@@ -1,4 +1,4 @@
-package com.baranov.cookbook.localDB.entity
+package com.baranov.cookbook.data.database.local.entity
 
 import androidx.room.Entity
 

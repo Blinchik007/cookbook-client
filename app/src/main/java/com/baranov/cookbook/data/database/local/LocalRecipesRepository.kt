@@ -1,11 +1,17 @@
-package com.baranov.cookbook.localDB
+package com.baranov.cookbook.data.database.local
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import com.baranov.cookbook.localDB.dao.*
-import com.baranov.cookbook.localDB.entity.*
-import com.baranov.cookbook.network.ApiClient
-import com.baranov.cookbook.network.dto.*
+import com.baranov.cookbook.data.database.local.dao.ProductDao
+import com.baranov.cookbook.data.database.local.dao.RecipeDao
+import com.baranov.cookbook.data.database.local.dao.RecipeProductDao
+import com.baranov.cookbook.data.database.local.entity.LocalProductEntity
+import com.baranov.cookbook.data.database.local.entity.LocalRecipeEntity
+import com.baranov.cookbook.data.database.local.entity.LocalRecipeProductEntity
+import com.baranov.cookbook.data.database.remote.ApiClient
+import com.baranov.cookbook.data.database.remote.dto.CreateRecipeRequest
+import com.baranov.cookbook.data.database.remote.dto.ProductInRecipeRequest
+import com.baranov.cookbook.data.database.remote.dto.RecipeProductDto
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 

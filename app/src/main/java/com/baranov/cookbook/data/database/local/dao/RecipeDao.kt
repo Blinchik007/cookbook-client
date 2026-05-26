@@ -1,7 +1,7 @@
-package com.baranov.cookbook.localDB.dao
+package com.baranov.cookbook.data.database.local.dao
 
 import androidx.room.*
-import com.baranov.cookbook.localDB.entity.LocalRecipeEntity
+import com.baranov.cookbook.data.database.local.entity.LocalRecipeEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

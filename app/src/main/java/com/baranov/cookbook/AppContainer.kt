@@ -1,8 +1,8 @@
 package com.baranov.cookbook
 
 import android.content.Context
-import com.baranov.cookbook.localDB.AppDatabase
-import com.baranov.cookbook.localDB.LocalRecipesRepository
+import com.baranov.cookbook.data.database.local.AppDatabase
+import com.baranov.cookbook.data.database.local.LocalRecipesRepository
 
 object AppContainer {
     lateinit var repository: LocalRecipesRepository

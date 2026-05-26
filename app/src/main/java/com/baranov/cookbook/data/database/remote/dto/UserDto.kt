@@ -1,4 +1,4 @@
-package com.baranov.cookbook.network.dto
+package com.baranov.cookbook.data.database.remote.dto
 
 import kotlinx.serialization.Serializable
 

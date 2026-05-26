@@ -6,8 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.baranov.cookbook.network.ApiClient
-import com.baranov.cookbook.network.dto.CreateUserRequest
+import com.baranov.cookbook.data.database.remote.ApiClient
 import kotlinx.coroutines.launch
 
 @Composable

@@ -1,7 +1,7 @@
-package com.baranov.cookbook.localDB.dao
+package com.baranov.cookbook.data.database.local.dao
 
 import androidx.room.*
-import com.baranov.cookbook.localDB.entity.LocalProductEntity
+import com.baranov.cookbook.data.database.local.entity.LocalProductEntity
 
 @Dao
 interface ProductDao {

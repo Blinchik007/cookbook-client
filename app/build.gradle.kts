@@ -83,6 +83,9 @@ dependencies {
     //coil
     implementation(libs.coil.compose)
 
+    //datastore
+    implementation(libs.androidx.datastore.preferences)
+
     // Tests
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

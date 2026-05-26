@@ -1,7 +1,15 @@
-package com.baranov.cookbook.network
+package com.baranov.cookbook.data.database.remote
 
 import com.baranov.cookbook.CurrentUser
-import com.baranov.cookbook.network.dto.*
+import com.baranov.cookbook.data.database.remote.dto.AddProductToRecipeRequest
+import com.baranov.cookbook.data.database.remote.dto.CreateProductRequest
+import com.baranov.cookbook.data.database.remote.dto.CreateRecipeRequest
+import com.baranov.cookbook.data.database.remote.dto.CreateUserRequest
+import com.baranov.cookbook.data.database.remote.dto.LoginRequest
+import com.baranov.cookbook.data.database.remote.dto.ProductDto
+import com.baranov.cookbook.data.database.remote.dto.RecipeDto
+import com.baranov.cookbook.data.database.remote.dto.RecipeWithDetailsDto
+import com.baranov.cookbook.data.database.remote.dto.UserProfileResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.android.Android
