@@ -8,7 +8,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.baranov.cookbook.screens.MainScreen
+import com.baranov.cookbook.screens.RegisterScreen
+import com.baranov.cookbook.screens.LoginScreen
+import com.baranov.cookbook.screens.HomeScreen
 import com.baranov.cookbook.screens.RecipeEditorScreen
 
 
@@ -29,12 +31,12 @@ fun CookbookApp() {
                     }
                 },
                 onNavigateToRegistration = {
-                    navController.navigate("authorization_screen")
+                    navController.navigate("register_screen")
                 }
             )
         }
-        composable("authorization_screen") {
-            AuthorizationScreen(
+        composable("register_screen") {
+            RegisterScreen(
                 onNavigateToMain = {
                     navController.navigate("main_screen") {
                         popUpTo("login_screen") { inclusive = true }
@@ -43,7 +45,7 @@ fun CookbookApp() {
             )
         }
         composable("main_screen") {
-            MainScreen(rootNavController = navController)
+            HomeScreen(rootNavController = navController)
         }
         composable(
             route = "recipe_editor/{recipeLocalId}",

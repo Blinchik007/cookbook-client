@@ -1,4 +1,4 @@
-package com.baranov.cookbook
+package com.baranov.cookbook.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.baranov.cookbook.CurrentUserHolder
 import com.baranov.cookbook.data.database.remote.ApiClient
 import kotlinx.coroutines.launch
 

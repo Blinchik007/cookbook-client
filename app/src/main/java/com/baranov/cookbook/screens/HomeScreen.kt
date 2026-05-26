@@ -30,7 +30,7 @@ import com.baranov.cookbook.ui.components.RecipeCard
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(rootNavController: NavController) {
+fun HomeScreen(rootNavController: NavController) {
     val innerNavController = rememberNavController()
     val repository = AppContainer.repository
 
