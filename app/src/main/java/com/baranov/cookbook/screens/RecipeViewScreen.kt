@@ -346,6 +346,7 @@ private fun RecipeViewContent(
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(photoBytes)
+                    .size(1200, 800)
                     .crossfade(true)
                     .build(),
                 contentDescription = data.title,

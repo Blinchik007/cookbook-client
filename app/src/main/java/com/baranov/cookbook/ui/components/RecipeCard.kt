@@ -82,6 +82,7 @@ fun RecipeCard(
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(photoBytes)
+                        .size(800, 360)   // защита от OOM: Coil сразу даунскейлит при декодировании
                         .crossfade(true)
                         .build(),
                     contentDescription = title,

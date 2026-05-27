@@ -29,6 +29,7 @@ import com.baranov.cookbook.CurrentUser
 import com.baranov.cookbook.CurrentUserHolder
 import com.baranov.cookbook.data.database.remote.ApiClient
 import com.baranov.cookbook.data.database.remote.dto.UpdateUserRequest
+import com.baranov.cookbook.scaleAndEncodeImage
 import com.baranov.cookbook.ui.components.UserAvatar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -58,7 +59,7 @@ fun ProfileScreen(onFinish: () -> Unit) {
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let {
-            photoBase64 = scaleAndEncodeImage(context, it)
+            photoBase64 = scaleAndEncodeImage(context, uri, maxSize = 256)
         }
     }
 
@@ -285,36 +286,3 @@ private fun ChangePasswordDialog(
     )
 }
 
-private fun scaleAndEncodeImage(context: Context, uri: Uri): String? {
-    return try {
-        val input = context.contentResolver.openInputStream(uri) ?: return null
-        val original = BitmapFactory.decodeStream(input)
-        input.close()
-        if (original == null) return null
-
-        val maxSize = 256
-        val scale = minOf(
-            maxSize.toFloat() / original.width,
-            maxSize.toFloat() / original.height,
-            1f
-        )
-        val scaled = if (scale < 1f) {
-            val newWidth = (original.width * scale).toInt()
-            val newHeight = (original.height * scale).toInt()
-            Bitmap.createScaledBitmap(original, newWidth, newHeight, true)
-        } else {
-            original
-        }
-
-        val output = ByteArrayOutputStream()
-        scaled.compress(Bitmap.CompressFormat.JPEG, 80, output)
-        val bytes = output.toByteArray()
-        output.close()
-        if (scaled != original) scaled.recycle()
-        original.recycle()
-
-        Base64.encodeToString(bytes, Base64.NO_WRAP)
-    } catch (e: Exception) {
-        null
-    }
-}

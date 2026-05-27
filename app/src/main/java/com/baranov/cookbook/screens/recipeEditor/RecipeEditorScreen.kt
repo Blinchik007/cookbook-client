@@ -1,7 +1,6 @@
 package com.baranov.cookbook.screens.recipeEditor
 
-import android.content.Context
-import android.net.Uri
+
 import android.os.Build
 import android.util.Base64
 import android.util.Log
@@ -32,6 +31,7 @@ import com.baranov.cookbook.data.database.local.entity.LocalProductEntity
 import com.baranov.cookbook.data.database.remote.ApiClient
 import com.baranov.cookbook.data.database.remote.dto.CreateProductRequest
 import com.baranov.cookbook.data.database.remote.dto.RecipeProductDto
+import com.baranov.cookbook.scaleAndEncodeImage
 import com.baranov.cookbook.ui.components.CreateProductBottomSheet
 import com.baranov.cookbook.ui.components.IngredientEditorRow
 import com.baranov.cookbook.ui.components.IngredientRow
@@ -69,7 +69,7 @@ fun RecipeEditorScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let {
-            photoBase64 = uriToBase64(context, it)
+            photoBase64 = scaleAndEncodeImage(context, it, maxSize = 1024)
             Log.d("PhotoDebug", "Base64 length: ${photoBase64?.length}, starts with: ${photoBase64?.take(30)}")
         }
     }
@@ -385,12 +385,6 @@ fun RecipeEditorScreen(
     }
 }
 
-private fun uriToBase64(context: Context, uri: Uri): String {
-    val inputStream = context.contentResolver.openInputStream(uri) ?: return ""
-    val bytes = inputStream.readBytes()
-    inputStream.close()
-    return Base64.encodeToString(bytes, Base64.NO_WRAP)
-}
 
 private fun formatQuantityForEdit(quantity: Double): String {
     return if (quantity % 1.0 == 0.0) {
