@@ -260,6 +260,70 @@ class LocalRecipesRepository(
         // после insertIgnore запись точно есть — либо вставили, либо уже была
         return productDao.getProductByServerId(serverProductId)!!.localId
     }
+
+    companion object {
+        private const val SYNC_THRESHOLD_MS = 60 * 60 * 1000L  // 1 час
+    }
+
+    /**
+     * Синхронизирует справочник продуктов с сервера.
+     * @param force если false — синкает только если последний синк был более часа назад.
+     * Не кидает исключений — при ошибке сети просто ничего не делает.
+     */
+    suspend fun syncProductsFromServer(force: Boolean = false) {
+        try {
+            if (!force) {
+                val lastSync = productDao.getAllProducts()
+                    .maxOfOrNull { it.syncedAt } ?: 0L
+                if (System.currentTimeMillis() - lastSync < SYNC_THRESHOLD_MS) return
+            }
+            val serverProducts = apiClient.getAllProducts()
+            val now = System.currentTimeMillis()
+            for (dto in serverProducts) {
+                val existing = productDao.getProductByServerId(dto.id)
+                if (existing == null) {
+                    productDao.insertProduct(
+                        LocalProductEntity(
+                            serverId = dto.id,
+                            name = dto.name,
+                            measurementUnit = dto.measurementUnit,
+                            updatedAt = now,
+                            syncedAt = now
+                        )
+                    )
+                } else {
+                    productDao.updateProduct(
+                        existing.copy(
+                            name = dto.name,
+                            measurementUnit = dto.measurementUnit,
+                            updatedAt = now,
+                            syncedAt = now
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            // Нет сети или сервер недоступен — игнорируем, продукты возьмём из кеша
+        }
+    }
+
+    /**
+     * Возвращает все продукты из локального кеша.
+     */
+    suspend fun getAllLocalProducts(): List<LocalProductEntity> =
+        productDao.getAllProducts()
+
+    /**
+     * Ищет продукты по подстроке в названии (case-insensitive по умолчанию в SQLite).
+     */
+    suspend fun searchLocalProducts(query: String): List<LocalProductEntity> =
+        productDao.searchProducts(query)
+
+    /**
+     * Возвращает локальный продукт по его serverId, или null если такого нет.
+     */
+    suspend fun findLocalProductByServerId(serverId: Int): LocalProductEntity? =
+        productDao.getProductByServerId(serverId)
 }
 
 data class LocalRecipeWithProducts(
@@ -267,3 +331,5 @@ data class LocalRecipeWithProducts(
     val products: List<RecipeProductDto>,
     val productEntities: List<LocalProductEntity>
 )
+
+

@@ -11,7 +11,7 @@ import androidx.navigation.navArgument
 import com.baranov.cookbook.screens.HomeScreen
 import com.baranov.cookbook.screens.LoginScreen
 import com.baranov.cookbook.screens.ProfileScreen
-import com.baranov.cookbook.screens.RecipeEditorScreen
+import com.baranov.cookbook.screens.recipeEditor.RecipeEditorScreen
 import com.baranov.cookbook.screens.RegisterScreen
 
 

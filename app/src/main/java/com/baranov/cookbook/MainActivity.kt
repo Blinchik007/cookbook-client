@@ -19,6 +19,7 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             CurrentUserHolder.currentUser = AppContainer.userPreferences.loadUser()
+            AppContainer.repository.syncProductsFromServer()
         }
 
         setContent {
