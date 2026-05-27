@@ -61,6 +61,7 @@ fun LoginScreen(
                             CurrentUserHolder.currentUser = user
                             if (user != null) {
                                 AppContainer.userPreferences.saveUser(user)
+                                AppContainer.onAuthChanged()
                             }
                             onNavigateToMain()
                         } catch (e: Exception) {

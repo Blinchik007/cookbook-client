@@ -16,6 +16,8 @@ import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.baranov.cookbook.ui.components.SearchBar
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -87,6 +89,7 @@ fun HomeScreen(rootNavController: NavController) {
                                 drawerState.close()
                                 AppContainer.userPreferences.clearUser()
                                 CurrentUserHolder.currentUser = null
+                                AppContainer.onAuthChanged()
                             }
                         },
                         modifier = Modifier.padding(horizontal = 12.dp)
@@ -357,6 +360,7 @@ fun PublicRecipesScreen(
     val repository = AppContainer.repository
     val recipes = remember { mutableStateListOf<RecipeDto>() }
     var isLoading by remember { mutableStateOf(false) }
+    var loadError by remember { mutableStateOf<String?>(null) }
     var expandedRecipeId by remember { mutableStateOf<Int?>(null) }
     var showDownloadConfirm by remember { mutableStateOf<RecipeDto?>(null) }
     var showLoginRequired by remember { mutableStateOf(false) }
@@ -364,59 +368,113 @@ fun PublicRecipesScreen(
     val scope = rememberCoroutineScope()
     val currentUserId = CurrentUserHolder.currentUser?.id
 
-    LaunchedEffect(Unit) {
+    // Поисковая строка с сохранением при повороте — требование курсовой.
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+
+    // История поиска — реактивно подтягивается из DataStore.
+    val historyItems by AppContainer.searchHistory.historyFlow
+        .collectAsStateWithLifecycle(initialValue = emptyList())
+
+    // Debounce + перезапрос сервера при каждом изменении searchQuery.
+    LaunchedEffect(searchQuery) {
+        delay(300)
         isLoading = true
+        loadError = null
         try {
-            val serverRecipes = ApiClient.getAllRecipes()
+            val serverRecipes = ApiClient.getAllRecipes(
+                search = searchQuery.takeIf { it.isNotBlank() }
+            )
             recipes.clear()
             recipes.addAll(serverRecipes)
         } catch (e: Exception) {
-            // обработка ошибок
+            loadError = "Не удалось загрузить рецепты"
         } finally {
             isLoading = false
         }
     }
 
-    if (isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-    } else if (recipes.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Публичных рецептов пока нет")
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(recipes, key = { it.id }) { recipe ->
-                val isExpanded = expandedRecipeId == recipe.id
-                RecipeCard(
-                    title = recipe.title,
-                    description = recipe.description,
-                    photoBase64 = recipe.photo,
-                    expanded = isExpanded,
-                    onClick = { onOpenRecipe(recipe.id) },
-                    onToggleExpand = {
-                        expandedRecipeId = if (isExpanded) null else recipe.id
-                    },
-                    onLongClick = { showDownloadConfirm = recipe },
-                    loadIngredients = {
-                        // Для публичного рецепта тянем детали с сервера.
-                        // Имена продуктов резолвим из локального кеша; если нет — заглушка.
-                        val details = ApiClient.getRecipeById(recipe.id) ?: return@RecipeCard emptyList()
-                        details.products.map { rp ->
-                            val product = repository.findLocalProductByServerId(rp.productId)
-                            IngredientDisplayItem(
-                                name = product?.name?.ifBlank { null } ?: "Продукт #${rp.productId}",
-                                quantity = rp.quantity,
-                                measurementUnit = product?.measurementUnit ?: ""
-                            )
-                        }
+    Column(modifier = Modifier.fillMaxSize()) {
+        SearchBar(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            placeholder = "Поиск по названию",
+            historyItems = historyItems,
+            onPickHistory = { picked ->
+                // Подставить + debounce инициирует поиск автоматически.
+                searchQuery = picked
+            },
+            onClearHistory = {
+                scope.launch { AppContainer.searchHistory.clear() }
+            }
+        )
+
+        when {
+            isLoading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+            loadError != null -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = loadError!!,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            recipes.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (searchQuery.isBlank()) "Публичных рецептов пока нет"
+                        else "Ничего не найдено"
+                    )
+                }
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(recipes, key = { it.id }) { recipe ->
+                        val isExpanded = expandedRecipeId == recipe.id
+                        RecipeCard(
+                            title = recipe.title,
+                            description = recipe.description,
+                            photoBase64 = recipe.photo,
+                            expanded = isExpanded,
+                            onClick = {
+                                // Требование курсовой: тап на результат поиска
+                                // добавляет текущий запрос в историю.
+                                val queryToSave = searchQuery
+                                if (queryToSave.isNotBlank()) {
+                                    scope.launch {
+                                        AppContainer.searchHistory.addQuery(queryToSave)
+                                    }
+                                }
+                                onOpenRecipe(recipe.id)
+                            },
+                            onToggleExpand = {
+                                expandedRecipeId = if (isExpanded) null else recipe.id
+                            },
+                            onLongClick = { showDownloadConfirm = recipe },
+                            loadIngredients = {
+                                val details = ApiClient.getRecipeById(recipe.id) ?: return@RecipeCard emptyList()
+                                details.products.map { rp ->
+                                    val product = repository.findLocalProductByServerId(rp.productId)
+                                    IngredientDisplayItem(
+                                        name = product?.name?.ifBlank { null } ?: "Продукт #${rp.productId}",
+                                        quantity = rp.quantity,
+                                        measurementUnit = product?.measurementUnit ?: ""
+                                    )
+                                }
+                            }
+                        )
                     }
-                )
+                }
             }
         }
     }

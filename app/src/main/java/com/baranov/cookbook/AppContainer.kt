@@ -2,6 +2,7 @@ package com.baranov.cookbook
 
 import android.annotation.SuppressLint
 import android.content.Context
+import com.baranov.cookbook.data.SearchHistory
 import com.baranov.cookbook.data.UserPreferences
 import com.baranov.cookbook.data.database.local.AppDatabase
 import com.baranov.cookbook.data.database.local.LocalRecipesRepository
@@ -15,6 +16,9 @@ object AppContainer {
     @SuppressLint("StaticFieldLeak")
     lateinit var userPreferences: UserPreferences
         private set
+    @SuppressLint("StaticFieldLeak")
+    lateinit var searchHistory: SearchHistory
+        private set
 
     fun init(context: Context) {
         val db = AppDatabase.getInstance(context)
@@ -27,5 +31,16 @@ object AppContainer {
             dao = db.shoppingListDao()
         )
         userPreferences = UserPreferences(context.applicationContext)
+        searchHistory = SearchHistory(context.applicationContext)
+    }
+
+    /**
+     * Вызывать при любом изменении состояния авторизации:
+     * — login (включая регистрацию),
+     * — logout.
+     * Чистит данные, привязанные к сеансу пользователя (на данный момент — историю поиска).
+     */
+    suspend fun onAuthChanged() {
+        searchHistory.clear()
     }
 }

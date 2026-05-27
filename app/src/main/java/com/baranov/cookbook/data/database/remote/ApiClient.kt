@@ -115,8 +115,14 @@ object ApiClient {
     suspend fun getAllProducts(): List<ProductDto> =
         client.get("${BASE_URL}products").body()
 
-    suspend fun getAllRecipes(): List<RecipeDto> =
-        client.get("${BASE_URL}recipes").body()
+    /**
+     * Получить рецепты с сервера.
+     * @param search если не null — выполняется поиск по названию (ILIKE-style).
+     */
+    suspend fun getAllRecipes(search: String? = null): List<RecipeDto> =
+        client.get("${BASE_URL}recipes") {
+            if (!search.isNullOrBlank()) parameter("search", search)
+        }.body()
 
     suspend fun getRecipeById(id: Int): RecipeWithDetailsDto? {
         return try {
