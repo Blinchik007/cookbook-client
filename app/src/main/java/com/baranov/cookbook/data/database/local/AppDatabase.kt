@@ -7,23 +7,27 @@ import androidx.room.RoomDatabase
 import com.baranov.cookbook.data.database.local.dao.ProductDao
 import com.baranov.cookbook.data.database.local.dao.RecipeDao
 import com.baranov.cookbook.data.database.local.dao.RecipeProductDao
+import com.baranov.cookbook.data.database.local.dao.ShoppingListDao
 import com.baranov.cookbook.data.database.local.entity.LocalProductEntity
 import com.baranov.cookbook.data.database.local.entity.LocalRecipeEntity
 import com.baranov.cookbook.data.database.local.entity.LocalRecipeProductEntity
+import com.baranov.cookbook.data.database.local.entity.ShoppingListItemEntity
 
 @Database(
     entities = [
         LocalRecipeEntity::class,
         LocalProductEntity::class,
-        LocalRecipeProductEntity::class
+        LocalRecipeProductEntity::class,
+        ShoppingListItemEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun recipeDao(): RecipeDao
     abstract fun productDao(): ProductDao
     abstract fun recipeProductDao(): RecipeProductDao
+    abstract fun shoppingListDao(): ShoppingListDao
 
     companion object {
         @Volatile

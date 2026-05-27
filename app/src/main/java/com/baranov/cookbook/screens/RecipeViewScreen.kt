@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Publish
+import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -142,6 +143,26 @@ fun RecipeViewScreen(
                             }
                         }
 
+                        // Экспорт ингредиентов в шоппинг-лист — отдельная иконка для серверного режима.
+                        // Для локального режима этот пункт лежит в DropdownMenu ниже.
+                        if (mode is RecipeViewMode.Server) {
+                            IconButton(onClick = {
+                                scope.launch {
+                                    val added = exportIngredientsToShoppingList(
+                                        ingredients = data.ingredients,
+                                        ownerUserId = currentUserId
+                                    )
+                                    snackbarMessage = if (added > 0) "Добавлено в список: $added"
+                                    else "В рецепте нет ингредиентов"
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.AddShoppingCart,
+                                    contentDescription = "Экспортировать в список покупок"
+                                )
+                            }
+                        }
+
                         // Меню три точки — для локального
                         if (canEdit || canPublish || canDelete) {
                             Box {
@@ -181,6 +202,23 @@ fun RecipeViewScreen(
                                             }
                                         )
                                     }
+                                    // Экспорт в шоп-лист — всегда доступен в локальном режиме,
+                                    // независимо от авторства и статуса публикации.
+                                    DropdownMenuItem(
+                                        text = { Text("Экспортировать в список") },
+                                        leadingIcon = { Icon(Icons.Default.AddShoppingCart, null) },
+                                        onClick = {
+                                            menuExpanded = false
+                                            scope.launch {
+                                                val added = exportIngredientsToShoppingList(
+                                                    ingredients = data.ingredients,
+                                                    ownerUserId = currentUserId
+                                                )
+                                                snackbarMessage = if (added > 0) "Добавлено в список: $added"
+                                                else "В рецепте нет ингредиентов"
+                                            }
+                                        }
+                                    )
                                     if (canDelete && localId != null) {
                                         DropdownMenuItem(
                                             text = { Text("Удалить") },
@@ -436,4 +474,38 @@ private suspend fun loadServer(
         authorId = details.recipe.authorId,
         ownerUserId = null
     )
+}
+
+/**
+ * Экспорт ингредиентов рецепта в шоппинг-лист.
+ * Каждый ингредиент превращается в строку "Название количество единица" (например "Мука 100 г")
+ * и добавляется как отдельная запись. Без объединения с существующими — даже если в списке
+ * уже есть "Мука 100 г", новая строка с тем же текстом добавится отдельно (по требованию).
+ *
+ * Возвращает количество фактически добавленных строк (0 если ингредиентов нет).
+ */
+private suspend fun exportIngredientsToShoppingList(
+    ingredients: List<IngredientView>,
+    ownerUserId: Int?
+): Int {
+    if (ingredients.isEmpty()) return 0
+    val texts = ingredients.map { ing ->
+        val qty = formatExportQuantity(ing.quantity)
+        listOfNotNull(ing.name.ifBlank { null }, qty, ing.measurementUnit.ifBlank { null })
+            .joinToString(" ")
+    }
+    com.baranov.cookbook.AppContainer.shoppingListRepository.addItems(ownerUserId, texts)
+    return texts.size
+}
+
+/**
+ * Форматирует количество для строки экспорта: целое — без точки, дробное — до 2 знаков без хвостовых нулей.
+ * Логика та же, что в IngredientRow.formatQuantity, но локальная — чтобы не плодить зависимости.
+ */
+private fun formatExportQuantity(quantity: Double): String {
+    return if (quantity % 1.0 == 0.0) {
+        quantity.toInt().toString()
+    } else {
+        "%.2f".format(quantity).trimEnd('0').trimEnd(',').trimEnd('.')
+    }
 }

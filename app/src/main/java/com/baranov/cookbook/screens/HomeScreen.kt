@@ -38,7 +38,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(rootNavController: NavController) {
     val repository = AppContainer.repository
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val currentUser = CurrentUserHolder.currentUser
 
@@ -127,6 +127,12 @@ fun HomeScreen(rootNavController: NavController) {
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(currentUser?.name ?: "Гость")
                         }
+                    },
+                    actions = {
+                        // Контекстный action — только когда активна третья страница (шоппинг-лист).
+                        if (pagerState.currentPage == 2) {
+                            ShoppingListDeleteCheckedAction()
+                        }
                     }
                 )
             },
@@ -146,6 +152,14 @@ fun HomeScreen(rootNavController: NavController) {
                         selected = pagerState.currentPage == 1,
                         onClick = {
                             scope.launch { pagerState.animateScrollToPage(1) }
+                        }
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Список покупок") },
+                        label = { Text("Список покупок") },
+                        selected = pagerState.currentPage == 2,
+                        onClick = {
+                            scope.launch { pagerState.animateScrollToPage(2) }
                         }
                     )
                 }
@@ -172,6 +186,7 @@ fun HomeScreen(rootNavController: NavController) {
                             rootNavController.navigate("recipe_view/server/$serverId")
                         }
                     )
+                    2 -> ShoppingListScreen()
                 }
             }
         }
