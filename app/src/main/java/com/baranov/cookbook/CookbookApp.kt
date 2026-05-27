@@ -11,6 +11,8 @@ import androidx.navigation.navArgument
 import com.baranov.cookbook.screens.HomeScreen
 import com.baranov.cookbook.screens.LoginScreen
 import com.baranov.cookbook.screens.ProfileScreen
+import com.baranov.cookbook.screens.RecipeViewMode
+import com.baranov.cookbook.screens.RecipeViewScreen
 import com.baranov.cookbook.screens.recipeEditor.RecipeEditorScreen
 import com.baranov.cookbook.screens.RegisterScreen
 
@@ -58,6 +60,32 @@ fun CookbookApp() {
             RecipeEditorScreen(
                 recipeLocalId = recipeLocalId,
                 onFinish = { navController.popBackStack() }
+            )
+        }
+
+        // Просмотр локального рецепта (свой/скачанный)
+        composable(
+            route = "recipe_view/local/{localId}",
+            arguments = listOf(navArgument("localId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val localId = backStackEntry.arguments?.getLong("localId") ?: -1L
+            RecipeViewScreen(
+                mode = RecipeViewMode.Local(localId),
+                onBack = { navController.popBackStack() },
+                onEdit = { id -> navController.navigate("recipe_editor/$id") }
+            )
+        }
+
+        // Просмотр публичного рецепта с сервера (не скачан)
+        composable(
+            route = "recipe_view/server/{serverId}",
+            arguments = listOf(navArgument("serverId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val serverId = backStackEntry.arguments?.getInt("serverId") ?: -1
+            RecipeViewScreen(
+                mode = RecipeViewMode.Server(serverId),
+                onBack = { navController.popBackStack() },
+                onEdit = { id -> navController.navigate("recipe_editor/$id") }
             )
         }
 

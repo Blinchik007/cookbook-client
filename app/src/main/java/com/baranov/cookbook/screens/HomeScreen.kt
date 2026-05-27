@@ -26,6 +26,7 @@ import com.baranov.cookbook.CurrentUserHolder
 import com.baranov.cookbook.data.database.local.LocalRecipesRepository
 import com.baranov.cookbook.data.database.remote.ApiClient
 import com.baranov.cookbook.data.database.remote.dto.RecipeDto
+import com.baranov.cookbook.ui.components.IngredientDisplayItem
 import com.baranov.cookbook.ui.components.RecipeCard
 import com.baranov.cookbook.ui.components.UserAvatar
 import kotlinx.coroutines.delay
@@ -161,9 +162,16 @@ fun HomeScreen(rootNavController: NavController) {
                         repository = repository,
                         onEditRecipe = { localId ->
                             rootNavController.navigate("recipe_editor/$localId")
+                        },
+                        onOpenRecipe = { localId ->
+                            rootNavController.navigate("recipe_view/local/$localId")
                         }
                     )
-                    1 -> PublicRecipesScreen()
+                    1 -> PublicRecipesScreen(
+                        onOpenRecipe = { serverId ->
+                            rootNavController.navigate("recipe_view/server/$serverId")
+                        }
+                    )
                 }
             }
         }
@@ -174,7 +182,8 @@ fun HomeScreen(rootNavController: NavController) {
 @Composable
 fun MyRecipesScreen(
     repository: LocalRecipesRepository,
-    onEditRecipe: (Long) -> Unit
+    onEditRecipe: (Long) -> Unit,
+    onOpenRecipe: (Long) -> Unit
 ) {
     val currentUserId = CurrentUserHolder.currentUser?.id
     val recipes by repository.getRecipesForUser(currentUserId)
@@ -217,10 +226,21 @@ fun MyRecipesScreen(
                         photoBase64 = recipe.photo,
                         badge = if (!isOwn) "скачано" else null,
                         expanded = isExpanded,
-                        onClick = {
+                        onClick = { onOpenRecipe(recipe.localId) },
+                        onToggleExpand = {
                             expandedRecipeId = if (isExpanded) null else recipe.localId
                         },
-                        onLongClick = { showMenuForRecipeId = recipe.localId }
+                        onLongClick = { showMenuForRecipeId = recipe.localId },
+                        loadIngredients = {
+                            val data = repository.getRecipeWithProducts(recipe.localId)
+                            data?.products?.zip(data.productEntities) { rp, product ->
+                                IngredientDisplayItem(
+                                    name = product.name.ifBlank { "Продукт #${product.serverId}" },
+                                    quantity = rp.quantity,
+                                    measurementUnit = product.measurementUnit
+                                )
+                            }.orEmpty()
+                        }
                     )
                 }
             }
@@ -239,30 +259,45 @@ fun MyRecipesScreen(
             title = { Text("Действие с рецептом") },
             text = { Text("Выберите действие") },
             confirmButton = {
-                TextButton(onClick = {
-                    showMenuForRecipeId = null
-                    onEditRecipe(localId)
-                }) {
-                    Text("Редактировать")
-                }
-            },
-            dismissButton = {
-                Row {
-                    if (canPublish) {
-                        TextButton(onClick = {
-                            showMenuForRecipeId = null
-                            scope.launch {
-                                repository.publishRecipe(localId)
-                            }
-                        }) {
-                            Text("Опубликовать")
-                        }
+                // Для своих — основное действие "Редактировать".
+                // Для скачанных — единственное доступное действие "Удалить" (редактировать чужой нельзя).
+                if (isOwn) {
+                    TextButton(onClick = {
+                        showMenuForRecipeId = null
+                        onEditRecipe(localId)
+                    }) {
+                        Text("Редактировать")
                     }
+                } else {
                     TextButton(onClick = {
                         showMenuForRecipeId = null
                         showDeleteConfirm = localId
                     }) {
                         Text("Удалить")
+                    }
+                }
+            },
+            dismissButton = {
+                // dismissButton показываем только для своих — там есть дополнительные действия.
+                // Для скачанных confirmButton уже содержит Удалить, других действий нет.
+                if (isOwn) {
+                    Row {
+                        if (canPublish) {
+                            TextButton(onClick = {
+                                showMenuForRecipeId = null
+                                scope.launch {
+                                    repository.publishRecipe(localId)
+                                }
+                            }) {
+                                Text("Опубликовать")
+                            }
+                        }
+                        TextButton(onClick = {
+                            showMenuForRecipeId = null
+                            showDeleteConfirm = localId
+                        }) {
+                            Text("Удалить")
+                        }
                     }
                 }
             }
@@ -296,7 +331,9 @@ fun MyRecipesScreen(
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun PublicRecipesScreen() {
+fun PublicRecipesScreen(
+    onOpenRecipe: (Int) -> Unit
+) {
     val repository = AppContainer.repository
     val recipes = remember { mutableStateListOf<RecipeDto>() }
     var isLoading by remember { mutableStateOf(false) }
@@ -340,12 +377,26 @@ fun PublicRecipesScreen() {
                     description = recipe.description,
                     photoBase64 = recipe.photo,
                     expanded = isExpanded,
-                    onClick = {
+                    onClick = { onOpenRecipe(recipe.id) },
+                    onToggleExpand = {
                         expandedRecipeId = if (isExpanded) null else recipe.id
                     },
                     onLongClick = if (currentUserId != null) {
                         { showDownloadConfirm = recipe }
-                    } else null
+                    } else null,
+                    loadIngredients = {
+                        // Для публичного рецепта тянем детали с сервера.
+                        // Имена продуктов резолвим из локального кеша; если нет — заглушка.
+                        val details = ApiClient.getRecipeById(recipe.id) ?: return@RecipeCard emptyList()
+                        details.products.map { rp ->
+                            val product = repository.findLocalProductByServerId(rp.productId)
+                            IngredientDisplayItem(
+                                name = product?.name?.ifBlank { null } ?: "Продукт #${rp.productId}",
+                                quantity = rp.quantity,
+                                measurementUnit = product?.measurementUnit ?: ""
+                            )
+                        }
+                    }
                 )
             }
         }
