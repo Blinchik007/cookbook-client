@@ -72,7 +72,8 @@ fun CookbookApp() {
             RecipeViewScreen(
                 mode = RecipeViewMode.Local(localId),
                 onBack = { navController.popBackStack() },
-                onEdit = { id -> navController.navigate("recipe_editor/$id") }
+                onEdit = { id -> navController.navigate("recipe_editor/$id") },
+                onNavigateToLogin = { navController.navigate("login_screen") }
             )
         }
 
@@ -85,7 +86,8 @@ fun CookbookApp() {
             RecipeViewScreen(
                 mode = RecipeViewMode.Server(serverId),
                 onBack = { navController.popBackStack() },
-                onEdit = { id -> navController.navigate("recipe_editor/$id") }
+                onEdit = { id -> navController.navigate("recipe_editor/$id") },
+                onNavigateToLogin = { navController.navigate("login_screen") }
             )
         }
 

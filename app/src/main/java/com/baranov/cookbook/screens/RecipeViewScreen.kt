@@ -28,6 +28,7 @@ import com.baranov.cookbook.data.database.local.LocalRecipeWithProducts
 import com.baranov.cookbook.data.database.remote.ApiClient
 import com.baranov.cookbook.data.database.remote.dto.RecipeWithDetailsDto
 import com.baranov.cookbook.ui.components.IngredientRow
+import com.baranov.cookbook.ui.components.LoginRequiredDialog
 import kotlinx.coroutines.launch
 
 /**
@@ -52,7 +53,8 @@ sealed class RecipeViewMode {
 fun RecipeViewScreen(
     mode: RecipeViewMode,
     onBack: () -> Unit,
-    onEdit: (Long) -> Unit
+    onEdit: (Long) -> Unit,
+    onNavigateToLogin: () -> Unit
 ) {
     val context = LocalContext.current
     val repository = AppContainer.repository
@@ -61,6 +63,7 @@ fun RecipeViewScreen(
 
     // Унифицированная модель отображения. Поля nullable там, где данные могут отсутствовать
     // в одном из режимов (например, localId есть только для Local; authorId есть всегда).
+    var showLoginRequiredFor by remember { mutableStateOf<String?>(null) }
     var viewData by remember(mode) { mutableStateOf<RecipeViewData?>(null) }
     var loading by remember(mode) { mutableStateOf(true) }
     var loadError by remember(mode) { mutableStateOf<String?>(null) }
@@ -122,18 +125,22 @@ fun RecipeViewScreen(
                         val isOwn = isLocal && data.authorId == data.ownerUserId
                         val isUnpublished = isLocal && (data.serverId == null || data.serverId == -1)
                         val canEdit = isLocal && isOwn
-                        val canPublish = isLocal && isOwn && isUnpublished && currentUserId != null
+                        val canPublish = isLocal && isOwn && isUnpublished
                         val canDelete = isLocal
-                        val canDownload = mode is RecipeViewMode.Server && currentUserId != null
+                        val canDownload = mode is RecipeViewMode.Server
 
                         // Скачать — отдельная кнопка для серверного режима (главное действие)
                         if (canDownload) {
                             IconButton(onClick = {
-                                val serverId = (mode as RecipeViewMode.Server).serverId
-                                scope.launch {
-                                    val result = repository.downloadPublicRecipe(serverId, currentUserId)
-                                    snackbarMessage = if (result != null) "Рецепт сохранён в ваши"
-                                    else "Не удалось скачать рецепт"
+                                if (currentUserId == null) {
+                                    showLoginRequiredFor = "скачать рецепт"
+                                } else {
+                                    val serverId = (mode as RecipeViewMode.Server).serverId
+                                    scope.launch {
+                                        val result = repository.downloadPublicRecipe(serverId, currentUserId)
+                                        snackbarMessage = if (result != null) "Рецепт сохранён в ваши"
+                                        else "Не удалось скачать рецепт"
+                                    }
                                 }
                             }) {
                                 Icon(
@@ -189,14 +196,17 @@ fun RecipeViewScreen(
                                             leadingIcon = { Icon(Icons.Default.Publish, null) },
                                             onClick = {
                                                 menuExpanded = false
-                                                scope.launch {
-                                                    try {
-                                                        repository.publishRecipe(localId)
-                                                        snackbarMessage = "Рецепт опубликован"
-                                                        // Перезагрузим данные — статус поменялся
-                                                        viewData = loadLocal(localId, repository::getRecipeWithProducts)
-                                                    } catch (e: Exception) {
-                                                        snackbarMessage = "Не удалось опубликовать"
+                                                if (currentUserId == null) {
+                                                    showLoginRequiredFor = "опубликовать рецепт"
+                                                } else {
+                                                    scope.launch {
+                                                        try {
+                                                            repository.publishRecipe(localId)
+                                                            snackbarMessage = "Рецепт опубликован"
+                                                            viewData = loadLocal(localId, repository::getRecipeWithProducts)
+                                                        } catch (e: Exception) {
+                                                            snackbarMessage = "Не удалось опубликовать"
+                                                        }
                                                     }
                                                 }
                                             }
@@ -296,6 +306,17 @@ fun RecipeViewScreen(
                 TextButton(onClick = { showDeleteConfirm = false }) {
                     Text("Отмена")
                 }
+            }
+        )
+    }
+
+    showLoginRequiredFor?.let { action ->
+        LoginRequiredDialog(
+            actionDescription = action,
+            onDismiss = { showLoginRequiredFor = null },
+            onLogin = {
+                showLoginRequiredFor = null
+                onNavigateToLogin()
             }
         )
     }

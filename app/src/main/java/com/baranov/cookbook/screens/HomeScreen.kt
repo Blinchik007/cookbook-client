@@ -27,6 +27,7 @@ import com.baranov.cookbook.data.database.local.LocalRecipesRepository
 import com.baranov.cookbook.data.database.remote.ApiClient
 import com.baranov.cookbook.data.database.remote.dto.RecipeDto
 import com.baranov.cookbook.ui.components.IngredientDisplayItem
+import com.baranov.cookbook.ui.components.LoginRequiredDialog
 import com.baranov.cookbook.ui.components.RecipeCard
 import com.baranov.cookbook.ui.components.UserAvatar
 import kotlinx.coroutines.delay
@@ -38,7 +39,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(rootNavController: NavController) {
     val repository = AppContainer.repository
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 3 })
+    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val currentUser = CurrentUserHolder.currentUser
 
@@ -139,16 +140,16 @@ fun HomeScreen(rootNavController: NavController) {
             bottomBar = {
                 NavigationBar {
                     NavigationBarItem(
-                        icon = { Icon(Icons.Default.List, contentDescription = "Мои рецепты") },
-                        label = { Text("Мои рецепты") },
+                        icon = { Icon(Icons.Default.Public, contentDescription = "Публичные рецепты") },
+                        label = { Text("Публичные рецепты") },
                         selected = pagerState.currentPage == 0,
                         onClick = {
                             scope.launch { pagerState.animateScrollToPage(0) }
                         }
                     )
                     NavigationBarItem(
-                        icon = { Icon(Icons.Default.Public, contentDescription = "Публичные рецепты") },
-                        label = { Text("Публичные рецепты") },
+                        icon = { Icon(Icons.Default.List, contentDescription = "Мои рецепты") },
+                        label = { Text("Мои рецепты") },
                         selected = pagerState.currentPage == 1,
                         onClick = {
                             scope.launch { pagerState.animateScrollToPage(1) }
@@ -172,18 +173,21 @@ fun HomeScreen(rootNavController: NavController) {
                     .padding(innerPadding)
             ) { page ->
                 when (page) {
-                    0 -> MyRecipesScreen(
+                    0 -> PublicRecipesScreen(
+                        onOpenRecipe = { serverId ->
+                            rootNavController.navigate("recipe_view/server/$serverId")
+                        },
+                        onNavigateToLogin = {
+                            rootNavController.navigate("login_screen")
+                        }
+                    )
+                    1 -> MyRecipesScreen(
                         repository = repository,
                         onEditRecipe = { localId ->
                             rootNavController.navigate("recipe_editor/$localId")
                         },
                         onOpenRecipe = { localId ->
                             rootNavController.navigate("recipe_view/local/$localId")
-                        }
-                    )
-                    1 -> PublicRecipesScreen(
-                        onOpenRecipe = { serverId ->
-                            rootNavController.navigate("recipe_view/server/$serverId")
                         }
                     )
                     2 -> ShoppingListScreen()
@@ -347,13 +351,15 @@ fun MyRecipesScreen(
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun PublicRecipesScreen(
-    onOpenRecipe: (Int) -> Unit
+    onOpenRecipe: (Int) -> Unit,
+    onNavigateToLogin: () -> Unit
 ) {
     val repository = AppContainer.repository
     val recipes = remember { mutableStateListOf<RecipeDto>() }
     var isLoading by remember { mutableStateOf(false) }
     var expandedRecipeId by remember { mutableStateOf<Int?>(null) }
     var showDownloadConfirm by remember { mutableStateOf<RecipeDto?>(null) }
+    var showLoginRequired by remember { mutableStateOf(false) }
     var snackbarMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val currentUserId = CurrentUserHolder.currentUser?.id
@@ -396,9 +402,7 @@ fun PublicRecipesScreen(
                     onToggleExpand = {
                         expandedRecipeId = if (isExpanded) null else recipe.id
                     },
-                    onLongClick = if (currentUserId != null) {
-                        { showDownloadConfirm = recipe }
-                    } else null,
+                    onLongClick = { showDownloadConfirm = recipe },
                     loadIngredients = {
                         // Для публичного рецепта тянем детали с сервера.
                         // Имена продуктов резолвим из локального кеша; если нет — заглушка.
@@ -425,12 +429,16 @@ fun PublicRecipesScreen(
             text = { Text("«${recipe.title}» будет сохранён в ваши рецепты.") },
             confirmButton = {
                 TextButton(onClick = {
-                    showDownloadConfirm = null
-                    scope.launch {
-                        val ownerId = currentUserId ?: return@launch
-                        val result = repository.downloadPublicRecipe(recipe.id, ownerId)
-                        snackbarMessage = if (result != null) "Рецепт сохранён"
-                        else "Не удалось скачать рецепт"
+                    if (currentUserId == null) {
+                        showDownloadConfirm = null
+                        showLoginRequired = true
+                    } else {
+                        showDownloadConfirm = null
+                        scope.launch {
+                            val result = repository.downloadPublicRecipe(recipe.id, currentUserId)
+                            snackbarMessage = if (result != null) "Рецепт сохранён"
+                            else "Не удалось скачать рецепт"
+                        }
                     }
                 }) {
                     Text("Скачать")
@@ -440,6 +448,17 @@ fun PublicRecipesScreen(
                 TextButton(onClick = { showDownloadConfirm = null }) {
                     Text("Отмена")
                 }
+            }
+        )
+    }
+
+    if (showLoginRequired) {
+        LoginRequiredDialog(
+            actionDescription = "скачать рецепт",
+            onDismiss = { showLoginRequired = false },
+            onLogin = {
+                showLoginRequired = false
+                onNavigateToLogin()
             }
         )
     }
