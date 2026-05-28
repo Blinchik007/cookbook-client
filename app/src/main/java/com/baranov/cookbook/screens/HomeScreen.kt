@@ -378,16 +378,17 @@ fun PublicRecipesScreen(
     var snackbarMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val currentUserId = CurrentUserHolder.currentUser?.id
+    var retryTrigger by remember { mutableIntStateOf(0) }
 
-    // Поисковая строка с сохранением при повороте — требование курсовой.
+    // Поисковая строка с сохранением при повороте
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
-    // История поиска — реактивно подтягивается из DataStore.
+    // История поиска
     val historyItems by AppContainer.searchHistory.historyFlow
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
     // Debounce + перезапрос сервера при каждом изменении searchQuery.
-    LaunchedEffect(searchQuery) {
+    LaunchedEffect(searchQuery, retryTrigger) {
         delay(300)
         isLoading = true
         loadError = null
@@ -433,10 +434,19 @@ fun PublicRecipesScreen(
                     modifier = Modifier.fillMaxSize().padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = loadError!!,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = loadError!!,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = {
+                            // Перезапускает LaunchedEffect с тем же searchQuery.
+                            retryTrigger++
+                        }) {
+                            Text("Обновить")
+                        }
+                    }
                 }
             }
             recipes.isEmpty() -> {
@@ -461,7 +471,7 @@ fun PublicRecipesScreen(
                             photoBase64 = recipe.photo,
                             expanded = isExpanded,
                             onClick = {
-                                // Требование курсовой: тап на результат поиска
+                                // тап на результат поиска
                                 // добавляет текущий запрос в историю.
                                 val queryToSave = searchQuery
                                 if (queryToSave.isNotBlank()) {
