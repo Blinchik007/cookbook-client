@@ -32,6 +32,7 @@ import com.baranov.cookbook.ui.components.IngredientDisplayItem
 import com.baranov.cookbook.ui.components.LoginRequiredDialog
 import com.baranov.cookbook.ui.components.RecipeCard
 import com.baranov.cookbook.ui.components.UserAvatar
+import com.baranov.cookbook.util.SearchQueryParser
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -77,6 +78,16 @@ fun HomeScreen(rootNavController: NavController) {
                         onClick = {
                             scope.launch { drawerState.close() }
                             rootNavController.navigate("profile_screen")
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                    NavigationDrawerItem(
+                        label = { Text("Настройки") },
+                        icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                        selected = false,
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            rootNavController.navigate("settings_screen")
                         },
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
@@ -381,8 +392,11 @@ fun PublicRecipesScreen(
         isLoading = true
         loadError = null
         try {
+            // Парсим расширенный синтаксис: r: (название), a: (автор).
+            val parts = SearchQueryParser.parse(searchQuery)
             val serverRecipes = ApiClient.getAllRecipes(
-                search = searchQuery.takeIf { it.isNotBlank() }
+                search = parts.recipeName,
+                author = parts.authorName
             )
             recipes.clear()
             recipes.addAll(serverRecipes)

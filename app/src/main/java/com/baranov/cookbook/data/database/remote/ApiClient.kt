@@ -117,11 +117,14 @@ object ApiClient {
 
     /**
      * Получить рецепты с сервера.
-     * @param search если не null — выполняется поиск по названию (ILIKE-style).
+     * @param search подстрока в названии рецепта.
+     * @param author подстрока в имени автора.
+     * Оба null — все рецепты.
      */
-    suspend fun getAllRecipes(search: String? = null): List<RecipeDto> =
+    suspend fun getAllRecipes(search: String? = null, author: String? = null): List<RecipeDto> =
         client.get("${BASE_URL}recipes") {
             if (!search.isNullOrBlank()) parameter("search", search)
+            if (!author.isNullOrBlank()) parameter("author", author)
         }.body()
 
     suspend fun getRecipeById(id: Int): RecipeWithDetailsDto? {

@@ -31,7 +31,7 @@ import com.baranov.cookbook.data.database.local.entity.LocalProductEntity
 import com.baranov.cookbook.data.database.remote.ApiClient
 import com.baranov.cookbook.data.database.remote.dto.CreateProductRequest
 import com.baranov.cookbook.data.database.remote.dto.RecipeProductDto
-import com.baranov.cookbook.scaleAndEncodeImage
+import com.baranov.cookbook.util.scaleAndEncodeImage
 import com.baranov.cookbook.ui.components.CreateProductBottomSheet
 import com.baranov.cookbook.ui.components.IngredientEditorRow
 import com.baranov.cookbook.ui.components.IngredientRow

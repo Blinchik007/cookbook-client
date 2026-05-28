@@ -3,6 +3,7 @@ package com.baranov.cookbook
 import android.annotation.SuppressLint
 import android.content.Context
 import com.baranov.cookbook.data.SearchHistory
+import com.baranov.cookbook.data.SettingsPreferences
 import com.baranov.cookbook.data.UserPreferences
 import com.baranov.cookbook.data.database.local.AppDatabase
 import com.baranov.cookbook.data.database.local.LocalRecipesRepository
@@ -19,6 +20,9 @@ object AppContainer {
     @SuppressLint("StaticFieldLeak")
     lateinit var searchHistory: SearchHistory
         private set
+    @SuppressLint("StaticFieldLeak")
+    lateinit var settingsPreferences: SettingsPreferences
+        private set
 
     fun init(context: Context) {
         val db = AppDatabase.getInstance(context)
@@ -32,6 +36,7 @@ object AppContainer {
         )
         userPreferences = UserPreferences(context.applicationContext)
         searchHistory = SearchHistory(context.applicationContext)
+        settingsPreferences = SettingsPreferences(context.applicationContext)
     }
 
     /**

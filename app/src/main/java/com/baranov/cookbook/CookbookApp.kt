@@ -3,6 +3,8 @@ package com.baranov.cookbook
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.*
+import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -15,7 +17,14 @@ import com.baranov.cookbook.screens.RecipeViewMode
 import com.baranov.cookbook.screens.RecipeViewScreen
 import com.baranov.cookbook.screens.recipeEditor.RecipeEditorScreen
 import com.baranov.cookbook.screens.RegisterScreen
+import com.baranov.cookbook.screens.SettingsScreen
 
+
+fun NavController.popBackStackSafely() {
+    if (currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+        popBackStack()
+    }
+}
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -59,7 +68,7 @@ fun CookbookApp() {
             val recipeLocalId = backStackEntry.arguments?.getLong("recipeLocalId") ?: -1L
             RecipeEditorScreen(
                 recipeLocalId = recipeLocalId,
-                onFinish = { navController.popBackStack() }
+                onFinish = { navController.popBackStackSafely() }
             )
         }
 
@@ -71,7 +80,7 @@ fun CookbookApp() {
             val localId = backStackEntry.arguments?.getLong("localId") ?: -1L
             RecipeViewScreen(
                 mode = RecipeViewMode.Local(localId),
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popBackStackSafely() },
                 onEdit = { id -> navController.navigate("recipe_editor/$id") },
                 onNavigateToLogin = { navController.navigate("login_screen") }
             )
@@ -85,14 +94,19 @@ fun CookbookApp() {
             val serverId = backStackEntry.arguments?.getInt("serverId") ?: -1
             RecipeViewScreen(
                 mode = RecipeViewMode.Server(serverId),
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popBackStackSafely() },
                 onEdit = { id -> navController.navigate("recipe_editor/$id") },
                 onNavigateToLogin = { navController.navigate("login_screen") }
             )
         }
 
+
+        composable("settings_screen") {
+            SettingsScreen(onBack = { navController.popBackStackSafely() })
+        }
+
         composable("profile_screen") {
-            ProfileScreen(onFinish = { navController.popBackStack() })
+            ProfileScreen(onFinish = { navController.popBackStackSafely() })
         }
     }
 }
