@@ -153,9 +153,7 @@ class LocalRecipesRepository(
         }
     }
 
-    /**
-     * Скачать публичный рецепт с сервера в локалку для текущего пользователя.
-     */
+    //Скачать публичный рецепт с сервера в локалку для текущего пользователя
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun downloadPublicRecipe(serverRecipeId: Int, ownerUserId: Int): Long? {
         val server = apiClient.getRecipeById(serverRecipeId) ?: return null
@@ -232,18 +230,10 @@ class LocalRecipesRepository(
         recipeDao.deleteRecipe(recipe)
     }
 
-    /**
-     * Перенести все гостевые рецепты на указанного пользователя.
-     * Вызывается после логина, если пользователь согласился присвоить гостевые записи.
-     */
-    suspend fun claimGuestRecipes(newOwnerId: Int) {
-        recipeDao.reassignGuestRecipes(newOwnerId)
-    }
 
     /**
      * Гарантирует, что в local_products есть запись с нужным serverId,
      * и возвращает её localId. Если записи нет — создаёт пустую заглушку.
-     * (TODO: дотягивать полную инфу с сервера, когда появится /products/{id}.)
      */
     private suspend fun ensureLocalProduct(serverProductId: Int): Long {
         val existing = productDao.getProductByServerId(serverProductId)
@@ -267,8 +257,7 @@ class LocalRecipesRepository(
 
     /**
      * Синхронизирует справочник продуктов с сервера.
-     * @param force если false — синкает только если последний синк был более часа назад.
-     * Не кидает исключений — при ошибке сети просто ничего не делает.
+     * @param force если false — синхронизирует только если последняя синхронизация была более часа назад.
      */
     suspend fun syncProductsFromServer(force: Boolean = false) {
         try {
@@ -307,21 +296,12 @@ class LocalRecipesRepository(
         }
     }
 
-    /**
-     * Возвращает все продукты из локального кеша.
-     */
-    suspend fun getAllLocalProducts(): List<LocalProductEntity> =
-        productDao.getAllProducts()
 
-    /**
-     * Ищет продукты по подстроке в названии (case-insensitive по умолчанию в SQLite).
-     */
+    //Ищет продукты по подстроке в названии
     suspend fun searchLocalProducts(query: String): List<LocalProductEntity> =
         productDao.searchProducts(query)
 
-    /**
-     * Возвращает локальный продукт по его serverId, или null если такого нет.
-     */
+    //Возвращает локальный продукт по его serverId, или null если такого нет.
     suspend fun findLocalProductByServerId(serverId: Int): LocalProductEntity? =
         productDao.getProductByServerId(serverId)
 }

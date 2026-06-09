@@ -2,24 +2,33 @@ package com.baranov.cookbook.screens
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Publish
-import androidx.compose.material.icons.filled.AddShoppingCart
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.baranov.cookbook.AppContainer
@@ -31,17 +40,6 @@ import com.baranov.cookbook.ui.components.IngredientRow
 import com.baranov.cookbook.ui.components.LoginRequiredDialog
 import kotlinx.coroutines.launch
 
-/**
- * Экран просмотра рецепта. Поддерживает два режима:
- *  - [RecipeViewMode.Local] — данные читаются из Room. Работает офлайн.
- *  - [RecipeViewMode.Server] — данные тянутся с сервера через ApiClient. Требует интернет.
- *
- * Действия в TopAppBar зависят от контекста рецепта:
- *  - Свой локальный (не опубликован): Редактировать, Опубликовать, Удалить.
- *  - Свой опубликованный: Редактировать, Удалить.
- *  - Скачанный (чужой авторства, лежит у меня): Удалить.
- *  - Публичный с сервера (не скачан): Скачать (только если залогинен).
- */
 sealed class RecipeViewMode {
     data class Local(val localId: Long) : RecipeViewMode()
     data class Server(val serverId: Int) : RecipeViewMode()
@@ -56,13 +54,11 @@ fun RecipeViewScreen(
     onEdit: (Long) -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
-    val context = LocalContext.current
     val repository = AppContainer.repository
     val currentUserId = CurrentUserHolder.currentUser?.id
     val scope = rememberCoroutineScope()
+    val scheme = MaterialTheme.colorScheme
 
-    // Унифицированная модель отображения. Поля nullable там, где данные могут отсутствовать
-    // в одном из режимов (например, localId есть только для Local; authorId есть всегда).
     var showLoginRequiredFor by remember { mutableStateOf<String?>(null) }
     var viewData by remember(mode) { mutableStateOf<RecipeViewData?>(null) }
     var loading by remember(mode) { mutableStateOf(true) }
@@ -79,7 +75,6 @@ fun RecipeViewScreen(
         }
     }
 
-    // Загрузка данных при первом открытии или смене mode.
     LaunchedEffect(mode) {
         loading = true
         loadError = null
@@ -99,27 +94,41 @@ fun RecipeViewScreen(
         }
     }
 
+    val bgBrush = Brush.radialGradient(
+        colors = listOf(scheme.surfaceVariant, scheme.background, scheme.background),
+        radius = 1400f
+    )
+
     Scaffold(
+        containerColor = Color.Transparent,
+        modifier = Modifier.background(bgBrush),
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = scheme.primary,
+                    navigationIconContentColor = scheme.primary,
+                    actionIconContentColor = scheme.primary
+                ),
                 title = {
                     Text(
                         text = viewData?.title ?: "Рецепт",
+                        style = MaterialTheme.typography.headlineMedium,
                         maxLines = 1
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    CircleIconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад"
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад",
+                            tint = scheme.primary
                         )
                     }
                 },
                 actions = {
                     val data = viewData
                     if (data != null) {
-                        // Определяем доступные действия по контексту
                         val isLocal = mode is RecipeViewMode.Local
                         val localId = (mode as? RecipeViewMode.Local)?.localId
                         val isOwn = isLocal && data.authorId == data.ownerUserId
@@ -129,9 +138,8 @@ fun RecipeViewScreen(
                         val canDelete = isLocal
                         val canDownload = mode is RecipeViewMode.Server
 
-                        // Скачать — отдельная кнопка для серверного режима (главное действие)
                         if (canDownload) {
-                            IconButton(onClick = {
+                            CircleIconButton(onClick = {
                                 if (currentUserId == null) {
                                     showLoginRequiredFor = "скачать рецепт"
                                 } else {
@@ -145,15 +153,14 @@ fun RecipeViewScreen(
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.CloudDownload,
-                                    contentDescription = "Скачать"
+                                    contentDescription = "Скачать",
+                                    tint = scheme.primary
                                 )
                             }
                         }
 
-                        // Экспорт ингредиентов в шоппинг-лист — отдельная иконка для серверного режима.
-                        // Для локального режима этот пункт лежит в DropdownMenu ниже.
                         if (mode is RecipeViewMode.Server) {
-                            IconButton(onClick = {
+                            CircleIconButton(onClick = {
                                 scope.launch {
                                     val added = exportIngredientsToShoppingList(
                                         ingredients = data.ingredients,
@@ -165,25 +172,30 @@ fun RecipeViewScreen(
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.AddShoppingCart,
-                                    contentDescription = "Экспортировать в список покупок"
+                                    contentDescription = "Экспортировать в список покупок",
+                                    tint = scheme.primary
                                 )
                             }
                         }
 
-                        // Меню три точки — для локального
                         if (canEdit || canPublish || canDelete) {
                             Box {
-                                IconButton(onClick = { menuExpanded = true }) {
-                                    Icon(Icons.Default.MoreVert, contentDescription = "Действия")
+                                CircleIconButton(onClick = { menuExpanded = true }) {
+                                    Icon(
+                                        Icons.Default.MoreVert,
+                                        contentDescription = "Действия",
+                                        tint = scheme.primary
+                                    )
                                 }
                                 DropdownMenu(
                                     expanded = menuExpanded,
-                                    onDismissRequest = { menuExpanded = false }
+                                    onDismissRequest = { menuExpanded = false },
+                                    containerColor = scheme.surface
                                 ) {
                                     if (canEdit && localId != null) {
                                         DropdownMenuItem(
-                                            text = { Text("Редактировать") },
-                                            leadingIcon = { Icon(Icons.Default.Edit, null) },
+                                            text = { Text("Редактировать", color = scheme.onSurface) },
+                                            leadingIcon = { Icon(Icons.Default.Edit, null, tint = scheme.primary) },
                                             onClick = {
                                                 menuExpanded = false
                                                 onEdit(localId)
@@ -192,8 +204,8 @@ fun RecipeViewScreen(
                                     }
                                     if (canPublish && localId != null) {
                                         DropdownMenuItem(
-                                            text = { Text("Опубликовать") },
-                                            leadingIcon = { Icon(Icons.Default.Publish, null) },
+                                            text = { Text("Опубликовать", color = scheme.onSurface) },
+                                            leadingIcon = { Icon(Icons.Default.Publish, null, tint = scheme.primary) },
                                             onClick = {
                                                 menuExpanded = false
                                                 if (currentUserId == null) {
@@ -212,11 +224,9 @@ fun RecipeViewScreen(
                                             }
                                         )
                                     }
-                                    // Экспорт в шоп-лист — всегда доступен в локальном режиме,
-                                    // независимо от авторства и статуса публикации.
                                     DropdownMenuItem(
-                                        text = { Text("Экспортировать в список") },
-                                        leadingIcon = { Icon(Icons.Default.AddShoppingCart, null) },
+                                        text = { Text("Экспортировать в список", color = scheme.onSurface) },
+                                        leadingIcon = { Icon(Icons.Default.AddShoppingCart, null, tint = scheme.primary) },
                                         onClick = {
                                             menuExpanded = false
                                             scope.launch {
@@ -231,8 +241,8 @@ fun RecipeViewScreen(
                                     )
                                     if (canDelete && localId != null) {
                                         DropdownMenuItem(
-                                            text = { Text("Удалить") },
-                                            leadingIcon = { Icon(Icons.Default.Delete, null) },
+                                            text = { Text("Удалить", color = scheme.error) },
+                                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = scheme.error) },
                                             onClick = {
                                                 menuExpanded = false
                                                 showDeleteConfirm = true
@@ -246,31 +256,36 @@ fun RecipeViewScreen(
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    actionColor = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        }
     ) { innerPadding ->
         when {
             loading -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = scheme.primary)
                 }
             }
             loadError != null -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(24.dp),
+                    modifier = Modifier.fillMaxSize().padding(innerPadding).padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = loadError!!,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error
+                        color = scheme.error
                     )
                 }
             }
@@ -287,7 +302,15 @@ fun RecipeViewScreen(
         val localId = (mode as? RecipeViewMode.Local)?.localId
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Удалить рецепт?") },
+            containerColor = scheme.surface,
+            titleContentColor = scheme.primary,
+            textContentColor = scheme.onSurface,
+            title = {
+                Text(
+                    "Удалить рецепт?",
+                    style = MaterialTheme.typography.headlineMedium
+                )
+            },
             text = { Text("Это действие нельзя отменить.") },
             confirmButton = {
                 TextButton(onClick = {
@@ -299,12 +322,12 @@ fun RecipeViewScreen(
                         }
                     }
                 }) {
-                    Text("Удалить")
+                    Text("Удалить", color = scheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Отмена")
+                    Text("Отмена", color = scheme.onSurfaceVariant)
                 }
             }
         )
@@ -328,6 +351,7 @@ private fun RecipeViewContent(
     contentPadding: PaddingValues
 ) {
     val context = LocalContext.current
+    val scheme = MaterialTheme.colorScheme
     val photoBytes = remember(data.photoBase64) {
         if (data.photoBase64.isNullOrBlank()) null
         else runCatching {
@@ -341,56 +365,103 @@ private fun RecipeViewContent(
             .padding(contentPadding)
             .verticalScroll(rememberScrollState())
     ) {
-        // 1. Большое фото на всю ширину
-        if (photoBytes != null) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(photoBytes)
-                    .size(1200, 800)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = data.title,
-                contentScale = ContentScale.Crop,
+        //  Фото с названием поверх
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(260.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(scheme.surfaceVariant)
+                .border(1.dp, scheme.primary.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
+        ) {
+            if (photoBytes != null) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(photoBytes)
+                        .size(1200, 800)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = data.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Restaurant,
+                        contentDescription = null,
+                        tint = scheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.size(80.dp)
+                    )
+                }
+            }
+
+            // Градиент по низу
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(260.dp)
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.55f)
+                            )
+                        )
+                    )
             )
+
+            // Плашка с названием
+            Surface(
+                color = Color.Black.copy(alpha = 0.55f),
+                shape = RoundedCornerShape(topStart = 12.dp, bottomEnd = 20.dp),
+                modifier = Modifier.align(Alignment.BottomEnd)
+            ) {
+                Text(
+                    text = data.title,
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineMedium.copy(fontSize = 22.sp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
         }
 
-        Column(modifier = Modifier.padding(16.dp)) {
-            // 2. Заголовок
-            Text(
-                text = data.title,
-                style = MaterialTheme.typography.headlineSmall
-            )
-
-            // 3. Описание (если есть)
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+            // Описание
             if (!data.description.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     text = data.description,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = scheme.onSurfaceVariant
                 )
             }
 
-            // 4. Ингредиенты
-            Spacer(modifier = Modifier.height(20.dp))
-            Text(
-                text = "Ингредиенты",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(24.dp))
+
+            SectionTitle("Ингредиенты")
+            Spacer(Modifier.height(8.dp))
+
             if (data.ingredients.isEmpty()) {
                 Text(
                     text = "Список пуст",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.outline
+                    color = scheme.onSurfaceVariant
                 )
             } else {
-                // Переиспользуем IngredientRow, но без действий редактирования.
-                // onEdit/onRemove тут no-op, потому что это view-only экран.
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(scheme.surface)
+                        .border(1.dp, scheme.primary.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     data.ingredients.forEach { ingredient ->
                         IngredientRow(
                             name = ingredient.name,
@@ -403,33 +474,67 @@ private fun RecipeViewContent(
                 }
             }
 
-            // 5. Инструкция по приготовлению
-            Spacer(modifier = Modifier.height(20.dp))
-            Text(
-                text = "Приготовление",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = data.cookingInstructions.ifBlank { "Инструкция не указана" },
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Spacer(Modifier.height(24.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
+            SectionTitle("Приготовление")
+            Spacer(Modifier.height(8.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(scheme.surface)
+                    .border(1.dp, scheme.primary.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Text(
+                    text = data.cookingInstructions.ifBlank { "Инструкция не указана" },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (data.cookingInstructions.isBlank()) scheme.onSurfaceVariant
+                    else scheme.onSurface
+                )
+            }
+
+            Spacer(Modifier.height(32.dp))
         }
     }
 }
 
-/**
- * Унифицированная модель данных для экрана, общая для обоих режимов.
- */
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.headlineMedium,
+        color = MaterialTheme.colorScheme.primary
+    )
+}
+
+@Composable
+private fun CircleIconButton(
+    onClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 4.dp)
+            .size(40.dp)
+            .clip(CircleShape)
+            .border(1.dp, scheme.primary.copy(alpha = 0.5f), CircleShape)
+    ) {
+        IconButton(onClick = onClick, modifier = Modifier.fillMaxSize()) {
+            content()
+        }
+    }
+}
+
 private data class RecipeViewData(
     val title: String,
     val description: String?,
     val cookingInstructions: String,
     val photoBase64: String?,
     val ingredients: List<IngredientView>,
-    // Контекстные поля — могут быть null в серверном режиме
     val serverId: Int?,
     val authorId: Int?,
     val ownerUserId: Int?
@@ -441,9 +546,6 @@ private data class IngredientView(
     val quantity: Double
 )
 
-/**
- * Загружает данные локального рецепта из Room.
- */
 private suspend fun loadLocal(
     localId: Long,
     getRecipeWithProducts: suspend (Long) -> LocalRecipeWithProducts?
@@ -468,11 +570,6 @@ private suspend fun loadLocal(
     )
 }
 
-/**
- * Загружает данные публичного рецепта с сервера.
- * Имена продуктов резолвятся из локального кеша по serverId.
- * Если продукт не в кеше — показываем "Продукт #N".
- */
 private suspend fun loadServer(
     serverId: Int,
     findLocalProduct: suspend (Int) -> com.baranov.cookbook.data.database.local.entity.LocalProductEntity?
@@ -498,14 +595,6 @@ private suspend fun loadServer(
     )
 }
 
-/**
- * Экспорт ингредиентов рецепта в шоппинг-лист.
- * Каждый ингредиент превращается в строку "Название количество единица" (например "Мука 100 г")
- * и добавляется как отдельная запись. Без объединения с существующими — даже если в списке
- * уже есть "Мука 100 г", новая строка с тем же текстом добавится отдельно (по требованию).
- *
- * Возвращает количество фактически добавленных строк (0 если ингредиентов нет).
- */
 private suspend fun exportIngredientsToShoppingList(
     ingredients: List<IngredientView>,
     ownerUserId: Int?
@@ -516,14 +605,10 @@ private suspend fun exportIngredientsToShoppingList(
         listOfNotNull(ing.name.ifBlank { null }, qty, ing.measurementUnit.ifBlank { null })
             .joinToString(" ")
     }
-    com.baranov.cookbook.AppContainer.shoppingListRepository.addItems(ownerUserId, texts)
+    AppContainer.shoppingListRepository.addItems(ownerUserId, texts)
     return texts.size
 }
 
-/**
- * Форматирует количество для строки экспорта: целое — без точки, дробное — до 2 знаков без хвостовых нулей.
- * Логика та же, что в IngredientRow.formatQuantity, но локальная — чтобы не плодить зависимости.
- */
 private fun formatExportQuantity(quantity: Double): String {
     return if (quantity % 1.0 == 0.0) {
         quantity.toInt().toString()

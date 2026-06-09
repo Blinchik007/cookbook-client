@@ -1,21 +1,28 @@
 package com.baranov.cookbook.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -25,18 +32,6 @@ import com.baranov.cookbook.CurrentUserHolder
 import com.baranov.cookbook.data.database.local.entity.ShoppingListItemEntity
 import kotlinx.coroutines.launch
 
-/**
- * Экран списка покупок.
- *
- * Поведение:
- * - Чекбокс слева → toggle "куплено". Купленные остаются на месте, перечёркнуты, приглушённого цвета.
- * - Тап по тексту → inline-редактирование (TextField на месте Text). Tap вне или Enter → сохранить.
- * - Корзина справа → удалить строку без подтверждения.
- * - FAB "+" снизу справа → диалог добавления новой строки.
- *
- * Удаление всех отмеченных делается через action в TopAppBar родительского HomeScreen
- * (см. [shoppingListDeleteCheckedAction]).
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShoppingListScreen() {
@@ -47,10 +42,16 @@ fun ShoppingListScreen() {
     var showAddDialog by remember { mutableStateOf(false) }
     var editingItemId by remember { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
+    val scheme = MaterialTheme.colorScheme
 
     Scaffold(
+        containerColor = Color.Transparent,
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                containerColor = scheme.primary,
+                contentColor = scheme.onPrimary
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Добавить")
             }
         }
@@ -64,7 +65,8 @@ fun ShoppingListScreen() {
             ) {
                 Text(
                     text = "Список покупок пуст",
-                    color = MaterialTheme.colorScheme.outline
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = scheme.onSurfaceVariant
                 )
             }
         } else {
@@ -72,7 +74,7 @@ fun ShoppingListScreen() {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 items(items, key = { it.localId }) { item ->
                     ShoppingListRow(
@@ -109,14 +111,6 @@ fun ShoppingListScreen() {
     }
 }
 
-/**
- * Action-кнопка для TopAppBar — удалить все отмеченные.
- * Вызывается из HomeScreen, когда активна страница шоппинг-листа.
- *
- * Спрятана за отдельной функцией, потому что:
- *  - TopAppBar живёт в HomeScreen и общий для всех страниц,
- *  - но действие специфично для шоппинг-листа.
- */
 @Composable
 fun ShoppingListDeleteCheckedAction() {
     val repository = AppContainer.shoppingListRepository
@@ -125,6 +119,7 @@ fun ShoppingListDeleteCheckedAction() {
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val hasChecked = items.any { it.checked }
     val scope = rememberCoroutineScope()
+    val scheme = MaterialTheme.colorScheme
 
     IconButton(
         onClick = {
@@ -134,7 +129,9 @@ fun ShoppingListDeleteCheckedAction() {
     ) {
         Icon(
             imageVector = Icons.Default.Delete,
-            contentDescription = "Удалить отмеченные"
+            contentDescription = "Удалить отмеченные",
+            tint = if (hasChecked) scheme.primary
+            else scheme.onSurfaceVariant.copy(alpha = 0.4f)
         )
     }
 }
@@ -148,66 +145,103 @@ private fun ShoppingListRow(
     onFinishEditing: (String) -> Unit,
     onDelete: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Checkbox(
-            checked = item.checked,
-            onCheckedChange = { onToggleChecked() }
-        )
+    val scheme = MaterialTheme.colorScheme
 
-        if (isEditing) {
-            // Inline-редактор: TextField на месте Text.
-            // Локальное состояние ввода, отдаётся наружу через onFinishEditing.
-            var draft by remember(item.localId) { mutableStateOf(item.text) }
-            val focusRequester = remember { FocusRequester() }
-
-            OutlinedTextField(
-                value = draft,
-                onValueChange = { draft = it },
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { focusState ->
-                        // Если поле потеряло фокус — сохраняем.
-                        if (!focusState.isFocused && isEditing) {
-                            onFinishEditing(draft)
-                        }
-                    },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { onFinishEditing(draft) })
-            )
-
-            // Автофокус при появлении в режиме редактирования.
-            LaunchedEffect(item.localId) {
-                focusRequester.requestFocus()
+                    .size(24.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .border(1.5.dp, scheme.primary, RoundedCornerShape(4.dp))
+                    .background(
+                        if (item.checked) scheme.primary.copy(alpha = 0.15f)
+                        else Color.Transparent
+                    )
+                    .clickable { onToggleChecked() },
+                contentAlignment = Alignment.Center
+            ) {
+                if (item.checked) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Отмечено",
+                        tint = scheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
-        } else {
-            Text(
-                text = item.text,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    textDecoration = if (item.checked) TextDecoration.LineThrough else TextDecoration.None
-                ),
-                color = if (item.checked) MaterialTheme.colorScheme.outline
-                else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier
-                    .weight(1f)
-                    .clickableNoIndication { onStartEditing() }
-                    .padding(vertical = 12.dp)
-            )
+
+            Spacer(Modifier.width(12.dp))
+
+            if (isEditing) {
+                var draft by remember(item.localId) { mutableStateOf(item.text) }
+                val focusRequester = remember { FocusRequester() }
+
+                TextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { focusState ->
+                            if (!focusState.isFocused && isEditing) {
+                                onFinishEditing(draft)
+                            }
+                        },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { onFinishEditing(draft) }),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = scheme.primary,
+                        unfocusedIndicatorColor = scheme.outline,
+                        cursorColor = scheme.primary
+                    )
+                )
+
+                LaunchedEffect(item.localId) {
+                    focusRequester.requestFocus()
+                }
+            } else {
+                Text(
+                    text = item.text,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        textDecoration = if (item.checked) TextDecoration.LineThrough
+                        else TextDecoration.None
+                    ),
+                    color = if (item.checked) scheme.onSurfaceVariant
+                    else scheme.onBackground,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickableNoIndication { onStartEditing() }
+                        .padding(vertical = 12.dp)
+                )
+            }
+
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Удалить",
+                    tint = scheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
 
-        IconButton(onClick = onDelete) {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Удалить",
-                tint = MaterialTheme.colorScheme.outline
-            )
-        }
+        // Подчёркивающая линия под строкой
+        HorizontalDivider(
+            color = scheme.outline.copy(alpha = 0.4f),
+            thickness = 1.dp
+        )
     }
 }
 
@@ -218,21 +252,39 @@ private fun AddItemDialog(
 ) {
     var text by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
+    val scheme = MaterialTheme.colorScheme
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Новый пункт") },
+        containerColor = scheme.surface,
+        titleContentColor = scheme.primary,
+        textContentColor = scheme.onSurface,
+        title = {
+            Text(
+                "Новый пункт",
+                style = MaterialTheme.typography.headlineMedium
+            )
+        },
         text = {
-            OutlinedTextField(
+            TextField(
                 value = text,
                 onValueChange = { text = it },
-                placeholder = { Text("Например: Хлеб") },
+                placeholder = {
+                    Text("Например: Хлеб", color = scheme.onSurfaceVariant.copy(alpha = 0.5f))
+                },
                 singleLine = true,
                 modifier = Modifier.focusRequester(focusRequester),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
                     if (text.isNotBlank()) onAdd(text)
-                })
+                }),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = scheme.primary,
+                    unfocusedIndicatorColor = scheme.outline,
+                    cursorColor = scheme.primary
+                )
             )
         },
         confirmButton = {
@@ -240,28 +292,26 @@ private fun AddItemDialog(
                 onClick = { if (text.isNotBlank()) onAdd(text) },
                 enabled = text.isNotBlank()
             ) {
-                Text("Добавить")
+                Text("Добавить", color = scheme.primary)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text("Отмена", color = scheme.onSurfaceVariant)
             }
         }
     )
 
-    // Автофокус на поле ввода при открытии диалога.
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
 }
 
-/**
- * Тап без ripple-эффекта — для текста, который превращается в TextField по тапу.
- */
 @Composable
 private fun Modifier.clickableNoIndication(onClick: () -> Unit): Modifier {
-    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val interactionSource = remember {
+        androidx.compose.foundation.interaction.MutableInteractionSource()
+    }
     return this.clickable(
         interactionSource = interactionSource,
         indication = null,

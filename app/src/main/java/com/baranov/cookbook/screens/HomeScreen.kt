@@ -2,6 +2,7 @@ package com.baranov.cookbook.screens
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -20,7 +21,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import com.baranov.cookbook.ui.components.SearchBar
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.baranov.cookbook.AppContainer
@@ -45,84 +50,75 @@ fun HomeScreen(rootNavController: NavController) {
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val currentUser = CurrentUserHolder.currentUser
+    val scheme = MaterialTheme.colorScheme
+
+    // Радиальный фон-градиент
+    val bgBrush = Brush.radialGradient(
+        colors = listOf(scheme.surfaceVariant, scheme.background, scheme.background),
+        radius = 1400f
+    )
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(modifier = Modifier.fillMaxWidth(0.5f)) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    UserAvatar(
-                        photoBase64 = currentUser?.photo,
-                        size = 72.dp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
+            ModalDrawerSheet(
+                modifier = Modifier.fillMaxWidth(0.55f),
+                drawerContainerColor = scheme.surface
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    UserAvatar(photoBase64 = currentUser?.photo, size = 72.dp)
+                    Spacer(Modifier.height(12.dp))
                     Text(
                         text = currentUser?.name ?: "Гость",
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = scheme.primary
                     )
                     if (currentUser != null) {
+                        Spacer(Modifier.height(4.dp))
                         Text(
                             text = currentUser.email,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = scheme.onSurfaceVariant
                         )
                     }
                 }
-                HorizontalDivider()
+                HorizontalDivider(color = scheme.outline.copy(alpha = 0.5f))
 
                 if (currentUser != null) {
-                    NavigationDrawerItem(
-                        label = { Text("Профиль") },
-                        icon = { Icon(Icons.Default.Person, contentDescription = null) },
-                        selected = false,
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            rootNavController.navigate("profile_screen")
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                    NavigationDrawerItem(
-                        label = { Text("Настройки") },
-                        icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                        selected = false,
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            rootNavController.navigate("settings_screen")
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                    NavigationDrawerItem(
-                        label = { Text("Выйти") },
-                        icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null) },
-                        selected = false,
-                        onClick = {
-                            scope.launch {
-                                drawerState.close()
-                                AppContainer.userPreferences.clearUser()
-                                CurrentUserHolder.currentUser = null
-                                AppContainer.onAuthChanged()
-                            }
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
+                    DrawerLink(Icons.Default.Person, "Профиль") {
+                        scope.launch { drawerState.close() }
+                        rootNavController.navigate("profile_screen")
+                    }
+                    DrawerLink(Icons.Default.Settings, "Настройки") {
+                        scope.launch { drawerState.close() }
+                        rootNavController.navigate("settings_screen")
+                    }
+                    DrawerLink(Icons.AutoMirrored.Filled.ExitToApp, "Выйти") {
+                        scope.launch {
+                            drawerState.close()
+                            AppContainer.userPreferences.clearUser()
+                            CurrentUserHolder.currentUser = null
+                            AppContainer.onAuthChanged()
+                        }
+                    }
                 } else {
-                    NavigationDrawerItem(
-                        label = { Text("Войти") },
-                        icon = { Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null) },
-                        selected = false,
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            rootNavController.navigate("login_screen")
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
+                    DrawerLink(Icons.AutoMirrored.Filled.Login, "Войти") {
+                        scope.launch { drawerState.close() }
+                        rootNavController.navigate("login_screen")
+                    }
                 }
             }
         }
     ) {
         Scaffold(
+            containerColor = Color.Transparent,
+            modifier = Modifier.background(bgBrush),
             topBar = {
                 TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = scheme.onBackground
+                    ),
                     title = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -130,21 +126,37 @@ fun HomeScreen(rootNavController: NavController) {
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
-                                ) {
-                                    scope.launch { drawerState.open() }
-                                }
+                                ) { scope.launch { drawerState.open() } }
                                 .padding(vertical = 4.dp)
                         ) {
                             UserAvatar(
                                 photoBase64 = currentUser?.photo,
-                                size = 36.dp
+                                size = 44.dp
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(currentUser?.name ?: "Гость")
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = currentUser?.name ?: "Гость",
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = scheme.primary
+                            )
                         }
                     },
                     actions = {
-                        // Контекстный action — только когда активна третья страница (шоппинг-лист).
+                        // Кнопка добавить рецепт
+                        if (pagerState.currentPage == 1) {
+                            IconButton(
+                                onClick = {
+                                    rootNavController.navigate("recipe_editor/-1")
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = "Добавить рецепт",
+                                    tint = scheme.primary
+                                )
+                            }
+                        }
+                        // На странице "Список покупок" — кнопка удалить отмеченные.
                         if (pagerState.currentPage == 2) {
                             ShoppingListDeleteCheckedAction()
                         }
@@ -152,33 +164,66 @@ fun HomeScreen(rootNavController: NavController) {
                 )
             },
             bottomBar = {
-                NavigationBar {
+                NavigationBar(
+                    containerColor = scheme.surface,
+                    contentColor = scheme.onSurface
+                ) {
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.Public, contentDescription = "Публичные рецепты") },
-                        label = { Text("Публичные рецепты") },
+                        label = {
+                            Text(
+                                "Публичные",
+                                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 12.sp)
+                            )
+                        },
                         selected = pagerState.currentPage == 0,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(0) }
-                        }
+                        onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = scheme.primary,
+                            selectedTextColor = scheme.primary,
+                            indicatorColor = scheme.primary.copy(alpha = 0.15f),
+                            unselectedIconColor = scheme.onSurfaceVariant,
+                            unselectedTextColor = scheme.onSurfaceVariant
+                        )
                     )
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.List, contentDescription = "Мои рецепты") },
-                        label = { Text("Мои рецепты") },
+                        label = {
+                            Text(
+                                "Мои рецепты",
+                                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 12.sp)
+                            )
+                        },
                         selected = pagerState.currentPage == 1,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(1) }
-                        }
+                        onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = scheme.primary,
+                            selectedTextColor = scheme.primary,
+                            indicatorColor = scheme.primary.copy(alpha = 0.15f),
+                            unselectedIconColor = scheme.onSurfaceVariant,
+                            unselectedTextColor = scheme.onSurfaceVariant
+                        )
                     )
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Список покупок") },
-                        label = { Text("Список покупок") },
+                        label = {
+                            Text(
+                                "Список",
+                                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 12.sp)
+                            )
+                        },
                         selected = pagerState.currentPage == 2,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(2) }
-                        }
+                        onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = scheme.primary,
+                            selectedTextColor = scheme.primary,
+                            indicatorColor = scheme.primary.copy(alpha = 0.15f),
+                            unselectedIconColor = scheme.onSurfaceVariant,
+                            unselectedTextColor = scheme.onSurfaceVariant
+                        )
                     )
                 }
-            }
+            },
         ) { innerPadding ->
             HorizontalPager(
                 state = pagerState,
@@ -211,6 +256,33 @@ fun HomeScreen(rootNavController: NavController) {
     }
 }
 
+
+@Composable
+private fun DrawerLink(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = scheme.primary)
+        Spacer(Modifier.width(16.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = scheme.onBackground
+        )
+    }
+}
+
+
+
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MyRecipesScreen(
@@ -225,13 +297,10 @@ fun MyRecipesScreen(
     var showMenuForRecipeId by remember { mutableStateOf<Long?>(null) }
     var showDeleteConfirm by remember { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
+    val scheme = MaterialTheme.colorScheme
 
     Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(onClick = { onEditRecipe(-1L) }) {
-                Icon(Icons.Default.Add, contentDescription = "Добавить рецепт")
-            }
-        }
+        containerColor = Color.Transparent
     ) { innerPadding ->
         if (recipes.isEmpty()) {
             Box(
@@ -240,7 +309,11 @@ fun MyRecipesScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("У вас пока нет рецептов")
+                Text(
+                    "У вас пока нет рецептов",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = scheme.onSurfaceVariant
+                )
             }
         } else {
             LazyColumn(
@@ -292,45 +365,31 @@ fun MyRecipesScreen(
             title = { Text("Действие с рецептом") },
             text = { Text("Выберите действие") },
             confirmButton = {
-                // Для своих — основное действие "Редактировать".
-                // Для скачанных — единственное доступное действие "Удалить" (редактировать чужой нельзя).
                 if (isOwn) {
                     TextButton(onClick = {
                         showMenuForRecipeId = null
                         onEditRecipe(localId)
-                    }) {
-                        Text("Редактировать")
-                    }
+                    }) { Text("Редактировать") }
                 } else {
                     TextButton(onClick = {
                         showMenuForRecipeId = null
                         showDeleteConfirm = localId
-                    }) {
-                        Text("Удалить")
-                    }
+                    }) { Text("Удалить") }
                 }
             },
             dismissButton = {
-                // dismissButton показываем только для своих — там есть дополнительные действия.
-                // Для скачанных confirmButton уже содержит Удалить, других действий нет.
                 if (isOwn) {
                     Row {
                         if (canPublish) {
                             TextButton(onClick = {
                                 showMenuForRecipeId = null
-                                scope.launch {
-                                    repository.publishRecipe(localId)
-                                }
-                            }) {
-                                Text("Опубликовать")
-                            }
+                                scope.launch { repository.publishRecipe(localId) }
+                            }) { Text("Опубликовать") }
                         }
                         TextButton(onClick = {
                             showMenuForRecipeId = null
                             showDeleteConfirm = localId
-                        }) {
-                            Text("Удалить")
-                        }
+                        }) { Text("Удалить") }
                     }
                 }
             }
@@ -346,17 +405,11 @@ fun MyRecipesScreen(
                 TextButton(onClick = {
                     val id = showDeleteConfirm!!
                     showDeleteConfirm = null
-                    scope.launch {
-                        repository.deleteRecipe(id)
-                    }
-                }) {
-                    Text("Удалить")
-                }
+                    scope.launch { repository.deleteRecipe(id) }
+                }) { Text("Удалить") }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = null }) {
-                    Text("Отмена")
-                }
+                TextButton(onClick = { showDeleteConfirm = null }) { Text("Отмена") }
             }
         )
     }
@@ -379,21 +432,18 @@ fun PublicRecipesScreen(
     val scope = rememberCoroutineScope()
     val currentUserId = CurrentUserHolder.currentUser?.id
     var retryTrigger by remember { mutableIntStateOf(0) }
+    val scheme = MaterialTheme.colorScheme
 
-    // Поисковая строка с сохранением при повороте
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
-    // История поиска
     val historyItems by AppContainer.searchHistory.historyFlow
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
-    // Debounce + перезапрос сервера при каждом изменении searchQuery.
     LaunchedEffect(searchQuery, retryTrigger) {
         delay(300)
         isLoading = true
         loadError = null
         try {
-            // Парсим расширенный синтаксис: r: (название), a: (автор).
             val parts = SearchQueryParser.parse(searchQuery)
             val serverRecipes = ApiClient.getAllRecipes(
                 search = parts.recipeName,
@@ -414,10 +464,7 @@ fun PublicRecipesScreen(
             onQueryChange = { searchQuery = it },
             placeholder = "Поиск по названию",
             historyItems = historyItems,
-            onPickHistory = { picked ->
-                // Подставить + debounce инициирует поиск автоматически.
-                searchQuery = picked
-            },
+            onPickHistory = { picked -> searchQuery = picked },
             onClearHistory = {
                 scope.launch { AppContainer.searchHistory.clear() }
             }
@@ -425,35 +472,35 @@ fun PublicRecipesScreen(
 
         when {
             isLoading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = scheme.primary)
                 }
             }
             loadError != null -> {
                 Box(
-                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    Modifier.fillMaxSize().padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = loadError!!,
-                            color = MaterialTheme.colorScheme.error
-                        )
+                        Text(loadError!!, color = scheme.error)
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = {
-                            // Перезапускает LaunchedEffect с тем же searchQuery.
-                            retryTrigger++
-                        }) {
-                            Text("Обновить")
-                        }
+                        Button(
+                            onClick = { retryTrigger++ },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = scheme.primary,
+                                contentColor = scheme.onPrimary
+                            )
+                        ) { Text("Обновить") }
                     }
                 }
             }
             recipes.isEmpty() -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = if (searchQuery.isBlank()) "Публичных рецептов пока нет"
-                        else "Ничего не найдено"
+                        else "Ничего не найдено",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = scheme.onSurfaceVariant
                     )
                 }
             }
@@ -471,8 +518,6 @@ fun PublicRecipesScreen(
                             photoBase64 = recipe.photo,
                             expanded = isExpanded,
                             onClick = {
-                                // тап на результат поиска
-                                // добавляет текущий запрос в историю.
                                 val queryToSave = searchQuery
                                 if (queryToSave.isNotBlank()) {
                                     scope.launch {
@@ -522,14 +567,10 @@ fun PublicRecipesScreen(
                             else "Не удалось скачать рецепт"
                         }
                     }
-                }) {
-                    Text("Скачать")
-                }
+                }) { Text("Скачать") }
             },
             dismissButton = {
-                TextButton(onClick = { showDownloadConfirm = null }) {
-                    Text("Отмена")
-                }
+                TextButton(onClick = { showDownloadConfirm = null }) { Text("Отмена") }
             }
         )
     }
@@ -550,10 +591,7 @@ fun PublicRecipesScreen(
             delay(2000)
             snackbarMessage = null
         }
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.BottomCenter
-        ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
             Surface(
                 modifier = Modifier.padding(16.dp),
                 shape = RoundedCornerShape(8.dp),

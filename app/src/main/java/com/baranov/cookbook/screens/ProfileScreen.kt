@@ -4,27 +4,42 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.baranov.cookbook.AppContainer
 import com.baranov.cookbook.CurrentUserHolder
 import com.baranov.cookbook.data.database.remote.ApiClient
 import com.baranov.cookbook.data.database.remote.dto.UpdateUserRequest
-import com.baranov.cookbook.util.scaleAndEncodeImage
 import com.baranov.cookbook.ui.components.UserAvatar
+import com.baranov.cookbook.util.scaleAndEncodeImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -35,8 +50,8 @@ fun ProfileScreen(onFinish: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val currentUser = CurrentUserHolder.currentUser
+    val scheme = MaterialTheme.colorScheme
 
-    // Если по какой-то причине вышли на экран без пользователя — закрываем
     LaunchedEffect(currentUser) {
         if (currentUser == null) onFinish()
     }
@@ -58,42 +73,92 @@ fun ProfileScreen(onFinish: () -> Unit) {
 
     val hasChanges = name != currentUser.name || photoBase64 != currentUser.photo
 
+    val bgBrush = Brush.radialGradient(
+        colors = listOf(scheme.surfaceVariant, scheme.background, scheme.background),
+        radius = 1400f
+    )
+
     Scaffold(
+        containerColor = Color.Transparent,
+        modifier = Modifier.background(bgBrush),
         topBar = {
             TopAppBar(
-                title = { Text("Профиль") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = scheme.primary,
+                    navigationIconContentColor = scheme.primary,
+                    actionIconContentColor = scheme.primary
+                ),
+                title = {
+                    Text(
+                        "Профиль",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onFinish) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .border(1.dp, scheme.primary.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        IconButton(onClick = onFinish, modifier = Modifier.fillMaxSize()) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Назад",
+                                tint = scheme.primary
+                            )
+                        }
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = {
-                            if (!isSaving && hasChanges && name.isNotBlank()) {
-                                scope.launch {
-                                    isSaving = true
-                                    val updated = ApiClient.updateUser(
-                                        userId = currentUser.id,
-                                        request = UpdateUserRequest(
-                                            name = if (name != currentUser.name) name else null,
-                                            photo = if (photoBase64 != currentUser.photo) photoBase64 else null
-                                        )
-                                    )
-                                    if (updated != null) {
-                                        CurrentUserHolder.currentUser = updated
-                                        AppContainer.userPreferences.saveUser(updated)
-                                        message = "Изменения сохранены"
-                                    } else {
-                                        message = "Не удалось сохранить"
-                                    }
-                                    isSaving = false
-                                }
-                            }
-                        },
-                        enabled = !isSaving && hasChanges && name.isNotBlank()
+                    val canSave = !isSaving && hasChanges && name.isNotBlank()
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .border(
+                                1.dp,
+                                if (canSave) scheme.primary.copy(alpha = 0.5f)
+                                else scheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                CircleShape
+                            )
                     ) {
-                        Icon(Icons.Default.Check, contentDescription = "Сохранить")
+                        IconButton(
+                            onClick = {
+                                if (canSave) {
+                                    scope.launch {
+                                        isSaving = true
+                                        val updated = ApiClient.updateUser(
+                                            userId = currentUser.id,
+                                            request = UpdateUserRequest(
+                                                name = if (name != currentUser.name) name else null,
+                                                photo = if (photoBase64 != currentUser.photo) photoBase64 else null
+                                            )
+                                        )
+                                        if (updated != null) {
+                                            CurrentUserHolder.currentUser = updated
+                                            AppContainer.userPreferences.saveUser(updated)
+                                            message = "Изменения сохранены"
+                                        } else {
+                                            message = "Не удалось сохранить"
+                                        }
+                                        isSaving = false
+                                    }
+                                }
+                            },
+                            enabled = canSave,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = "Сохранить",
+                                tint = if (canSave) scheme.primary
+                                else scheme.onSurfaceVariant.copy(alpha = 0.3f)
+                            )
+                        }
                     }
                 }
             )
@@ -104,55 +169,69 @@ fun ProfileScreen(onFinish: () -> Unit) {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Аватарка — кликабельная, открывает галерею
             Box(
-                modifier = Modifier.clickable {
-                    imagePickerLauncher.launch("image/*")
-                }
+                modifier = Modifier
+                    .size(132.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, scheme.primary.copy(alpha = 0.6f), CircleShape)
+                    .padding(6.dp)
+                    .clickable {
+                        imagePickerLauncher.launch("image/*")
+                    },
+                contentAlignment = Alignment.Center
             ) {
                 UserAvatar(
                     photoBase64 = photoBase64,
                     size = 120.dp
                 )
             }
+
+            Spacer(Modifier.height(12.dp))
+
             Text(
                 text = "Нажмите на аватар, чтобы изменить",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = scheme.onSurfaceVariant
             )
 
-            OutlinedTextField(
+            Spacer(Modifier.height(32.dp))
+
+            FieldLabel("Имя")
+            Spacer(Modifier.height(8.dp))
+            UnderlinedField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Имя") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                leadingIcon = Icons.Outlined.Person,
+                placeholder = "Ваше имя"
             )
 
-            OutlinedTextField(
+            Spacer(Modifier.height(24.dp))
+
+            FieldLabel("Email")
+            Spacer(Modifier.height(8.dp))
+            UnderlinedField(
                 value = currentUser.email,
                 onValueChange = {},
-                label = { Text("Email") },
-                singleLine = true,
-                enabled = false,
-                modifier = Modifier.fillMaxWidth()
+                leadingIcon = Icons.Outlined.Email,
+                placeholder = "",
+                enabled = false
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(40.dp))
 
-            OutlinedButton(
-                onClick = { showPasswordDialog = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Сменить пароль")
-            }
+            GoldButton(
+                text = "Сменить пароль",
+                enabled = !isSaving,
+                loading = false,
+                onClick = { showPasswordDialog = true }
+            )
 
             if (isSaving) {
-                CircularProgressIndicator()
+                Spacer(Modifier.height(16.dp))
+                CircularProgressIndicator(color = scheme.primary)
             }
         }
     }
@@ -168,7 +247,6 @@ fun ProfileScreen(onFinish: () -> Unit) {
         )
     }
 
-    // Простой снэкбар-сообщение
     message?.let { msg ->
         LaunchedEffect(msg) {
             delay(2000)
@@ -180,13 +258,17 @@ fun ProfileScreen(onFinish: () -> Unit) {
         ) {
             Surface(
                 modifier = Modifier.padding(16.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.inverseSurface
+                shape = RoundedCornerShape(12.dp),
+                color = scheme.surface,
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    scheme.primary.copy(alpha = 0.5f)
+                )
             ) {
                 Text(
                     text = msg,
-                    color = MaterialTheme.colorScheme.inverseOnSurface,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    color = scheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
                 )
             }
         }
@@ -205,40 +287,46 @@ private fun ChangePasswordDialog(
     var isProcessing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val scheme = MaterialTheme.colorScheme
 
     AlertDialog(
         onDismissRequest = { if (!isProcessing) onDismiss() },
-        title = { Text("Смена пароля") },
+        containerColor = scheme.surface,
+        titleContentColor = scheme.primary,
+        textContentColor = scheme.onSurface,
+        title = {
+            Text(
+                "Смена пароля",
+                style = MaterialTheme.typography.headlineMedium
+            )
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                UnderlinedField(
                     value = oldPassword,
                     onValueChange = { oldPassword = it },
-                    label = { Text("Старый пароль") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth()
+                    leadingIcon = Icons.Outlined.Lock,
+                    placeholder = "Старый пароль",
+                    visualTransformation = PasswordVisualTransformation()
                 )
-                OutlinedTextField(
+                UnderlinedField(
                     value = newPassword,
                     onValueChange = { newPassword = it },
-                    label = { Text("Новый пароль") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth()
+                    leadingIcon = Icons.Outlined.Lock,
+                    placeholder = "Новый пароль",
+                    visualTransformation = PasswordVisualTransformation()
                 )
-                OutlinedTextField(
+                UnderlinedField(
                     value = newPasswordRepeat,
                     onValueChange = { newPasswordRepeat = it },
-                    label = { Text("Повторите новый пароль") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth()
+                    leadingIcon = Icons.Outlined.Lock,
+                    placeholder = "Повторите новый пароль",
+                    visualTransformation = PasswordVisualTransformation()
                 )
                 if (errorMessage != null) {
                     Text(
                         text = errorMessage!!,
-                        color = MaterialTheme.colorScheme.error,
+                        color = scheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -268,14 +356,110 @@ private fun ChangePasswordDialog(
                 },
                 enabled = !isProcessing
             ) {
-                Text(if (isProcessing) "..." else "Сохранить")
+                Text(
+                    if (isProcessing) "..." else "Сохранить",
+                    color = scheme.primary
+                )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !isProcessing) {
-                Text("Отмена")
+                Text("Отмена", color = scheme.onSurfaceVariant)
             }
         }
     )
 }
 
+/* ---------- Внутренние компоненты ---------- */
+
+@Composable
+private fun FieldLabel(text: String) {
+    Text(
+        text = text,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontSize = 16.sp
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UnderlinedField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    leadingIcon: ImageVector,
+    placeholder: String,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    trailingIcon: (@Composable () -> Unit)? = null,
+    enabled: Boolean = true
+) {
+    val scheme = MaterialTheme.colorScheme
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        enabled = enabled,
+        textStyle = TextStyle(
+            color = if (enabled) scheme.onBackground else scheme.onSurfaceVariant,
+            fontSize = 14.sp
+        ),
+        placeholder = {
+            Text(placeholder, color = scheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = 14.sp)
+        },
+        leadingIcon = { Icon(leadingIcon, contentDescription = null, tint = scheme.primary) },
+        trailingIcon = trailingIcon,
+        visualTransformation = visualTransformation,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
+            disabledContainerColor = Color.Transparent,
+            focusedIndicatorColor = scheme.primary,
+            unfocusedIndicatorColor = scheme.outline,
+            disabledIndicatorColor = scheme.outline.copy(alpha = 0.5f),
+            cursorColor = scheme.primary,
+            disabledTextColor = scheme.onSurfaceVariant,
+            disabledLeadingIconColor = scheme.primary.copy(alpha = 0.6f)
+        )
+    )
+}
+
+@Composable
+private fun GoldButton(
+    text: String,
+    enabled: Boolean,
+    loading: Boolean,
+    onClick: () -> Unit
+) {
+    val scheme = MaterialTheme.colorScheme
+    val borderBrush = Brush.horizontalGradient(listOf(scheme.primary, scheme.secondary))
+    val fillBrush = Brush.horizontalGradient(
+        listOf(scheme.primary.copy(alpha = 0.10f), scheme.secondary.copy(alpha = 0.10f))
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(fillBrush)
+            .border(1.dp, borderBrush, RoundedCornerShape(16.dp))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (loading) {
+            CircularProgressIndicator(
+                color = scheme.primary,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(24.dp)
+            )
+        } else {
+            Text(
+                text = text,
+                color = scheme.primary,
+                style = MaterialTheme.typography.headlineMedium
+            )
+        }
+    }
+}

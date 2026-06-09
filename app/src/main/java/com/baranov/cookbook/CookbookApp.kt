@@ -58,6 +58,11 @@ fun CookbookApp() {
                         route = "home_screen",
                         inclusive = false
                     )
+                },
+                onNavigateToLogin = {
+                    navController.navigate("login_screen") {
+                        popUpTo("register_screen") { inclusive = true }
+                    }
                 }
             )
         }
